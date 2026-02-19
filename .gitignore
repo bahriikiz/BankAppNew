@@ -1,0 +1,27 @@
+# Bağımlılıklar (En önemlisi bu)
+node_modules/
+dist/
+tmp/
+out-tsc/
+bazel-out/
+
+# IDE ve Editörler
+.vscode/
+.idea/
+*.swp
+*.bak
+*.tmp
+
+# Sistem Dosyaları
+Thumbs.db
+desktop.ini
+
+# Log Dosyaları
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Eğer projeniz .NET içeriyorsa şunları da ekleyin
+bin/
+obj/
+.vs/
