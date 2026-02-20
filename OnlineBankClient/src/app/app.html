@@ -1,20 +1,30 @@
 <header class="sticky-top shadow-sm" style="z-index: 1030;">
 
-  <div class="py-2 shadow-sm" style="background-color: #ff6200 !important; color: white !important; font-size: 0.85rem;">
-    <div class="container d-flex justify-content-between align-items-center">
+<div class="py-2 shadow-sm position-relative overflow-hidden" style="background-color: #ac3900 !important; color: white !important; font-size: 0.85rem; height: 40px;">
+    <div class="container-fluid d-flex align-items-center h-100">
       
-      <div class="d-flex flex-wrap gap-4">
-        @for (item of rates; track item.currencyCode) {
-          <span class="d-flex align-items-center">
-            <strong class="fw-bold" style="color: white !important;">{{item.currencyCode}}</strong> 
-            <i class="bi bi-caret-up-fill ms-1" style="font-size: 0.7rem; color: #ffe6cc;"></i> 
-            <span class="ms-1 fw-medium fs-6" style="color: white !important;">{{item.rate | number:'1.2-2'}}</span>
-            <small class="ms-1 fw-light" style="color: #ffe6cc !important;">TRY</small>
-          </span>
-        }
+      <div class="marquee-container">
+        <div class="animate-marquee">
+          @for (item of rates; track item.currencyCode) {
+            <span class="me-5 d-inline-flex align-items-center">
+              <strong class="fw-bold" style="color: white !important;">{{item.currencyCode}}</strong> 
+              <i class="bi bi-caret-up-fill ms-1" style="font-size: 0.7rem; color: #ffe6cc;"></i> 
+              <span class="ms-1 fw-medium fs-6" style="color: white !important;">{{item.rate | number:'1.2-2'}}</span>
+              <small class="ms-1 fw-light" style="color: #ffe6cc !important;">TRY</small>
+            </span>
+          }
+          @for (item of rates; track item.currencyCode + '_loop') {
+            <span class="me-5 d-inline-flex align-items-center">
+              <strong class="fw-bold" style="color: white !important;">{{item.currencyCode}}</strong> 
+              <i class="bi bi-caret-up-fill ms-1" style="font-size: 0.7rem; color: #ffe6cc;"></i> 
+              <span class="ms-1 fw-medium fs-6" style="color: white !important;">{{item.rate | number:'1.2-2'}}</span>
+              <small class="ms-1 fw-light" style="color: #ffe6cc !important;">TRY</small>
+            </span>
+          }
+        </div>
       </div>
 
-      <div class="ms-3 border-start ps-3 d-none d-lg-block fw-medium" style="border-color: rgba(255,255,255,0.4) !important;">
+      <div class="ms-auto ps-3 pe-2 border-start last-update-box d-none d-lg-block" style="border-color: rgba(255,255,255,0.4) !important; background-color: #ac3900;">
         <i class="bi bi-clock-history me-1"></i> {{lastUpdated}}
       </div>
 
