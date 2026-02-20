@@ -1,0 +1,32 @@
+
+/* Marquee (Kayan Yazı) Altyapısı */
+.marquee-container {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+}
+
+.animate-marquee {
+  display: inline-block;
+  white-space: nowrap;
+  animation: marquee 30s linear infinite; /* Hızını buradan (30s) ayarlayabilirsin */
+}
+
+/* Mouse ile üzerine gelince durması için */
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); } /* İki döngü kullandığımız için %50 pürüzsüz dönüş sağlar */
+}
+
+/* Sağdaki güncelleme kutusunun altta kalmaması için */
+.last-update-box {
+  z-index: 10;
+  position: relative;
+  font-weight: 500;
+}
