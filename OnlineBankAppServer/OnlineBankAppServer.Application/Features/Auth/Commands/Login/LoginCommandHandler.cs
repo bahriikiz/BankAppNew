@@ -17,20 +17,25 @@ namespace OnlineBankAppServer.Application.Features.Auth.Commands.Login
 
             if (user is null)
             {
-                return new LoginCommandResponse(null, "Kullanıcı bulunamadı.");
+                return new LoginCommandResponse(string.Empty, string.Empty, string.Empty, "Kullanıcı bulunamadı.");
             }
 
             bool isPasswordMatch = BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash);
 
             if (!isPasswordMatch)
             {
-                return new LoginCommandResponse(null, "Şifre hatalı.");
+                return new LoginCommandResponse(string.Empty, string.Empty, string.Empty, "Şifre hatalı.");
             }
 
             // Gerçek bir uygulamada, JWT oluştururken daha fazla bilgi ekleyebilir ve güvenlik önlemleri alabilirsiniz.
             string token = jwtProvider.CreateToken(user);
 
-            return new LoginCommandResponse(token, "Giriş başarılı.");
+            return new LoginCommandResponse(
+    Token: token,
+    FirstName: user.FirstName, 
+    LastName: user.LastName,  
+    Message: "Giriş başarılı."
+);
         }
     }
 }

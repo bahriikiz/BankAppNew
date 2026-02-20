@@ -1,54 +1,96 @@
 <header class="sticky-top shadow-sm" style="z-index: 1030;">
 
-<div class="py-2 shadow-sm position-relative overflow-hidden" style="background-color: #ac3900 !important; color: white !important; font-size: 0.85rem; height: 40px;">
+  <div class="py-2 shadow-sm position-relative overflow-hidden" style="background-color: #ac3900 !important; color: white !important; font-size: 0.85rem; height: 40px;">
     <div class="container-fluid d-flex align-items-center h-100">
       
       <div class="marquee-container">
         <div class="animate-marquee">
           @for (item of rates; track item.currencyCode) {
             <span class="me-5 d-inline-flex align-items-center">
-              <strong class="fw-bold" style="color: white !important;">{{item.currencyCode}}</strong> 
+              <strong class="fw-bold text-white">{{item.currencyCode}}</strong> 
               <i class="bi bi-caret-up-fill ms-1" style="font-size: 0.7rem; color: #ffe6cc;"></i> 
-              <span class="ms-1 fw-medium fs-6" style="color: white !important;">{{item.rate | number:'1.2-2'}}</span>
+              <span class="ms-1 fw-medium fs-6 text-white">{{item.rate | number:'1.2-2'}}</span>
               <small class="ms-1 fw-light" style="color: #ffe6cc !important;">TRY</small>
             </span>
           }
           @for (item of rates; track item.currencyCode + '_loop') {
             <span class="me-5 d-inline-flex align-items-center">
-              <strong class="fw-bold" style="color: white !important;">{{item.currencyCode}}</strong> 
+              <strong class="fw-bold text-white">{{item.currencyCode}}</strong> 
               <i class="bi bi-caret-up-fill ms-1" style="font-size: 0.7rem; color: #ffe6cc;"></i> 
-              <span class="ms-1 fw-medium fs-6" style="color: white !important;">{{item.rate | number:'1.2-2'}}</span>
+              <span class="ms-1 fw-medium fs-6 text-white">{{item.rate | number:'1.2-2'}}</span>
               <small class="ms-1 fw-light" style="color: #ffe6cc !important;">TRY</small>
             </span>
           }
         </div>
       </div>
 
-      <div class="ms-auto ps-3 pe-2 border-start last-update-box d-none d-lg-block" style="border-color: rgba(255,255,255,0.4) !important; background-color: #ac3900;">
-        <i class="bi bi-clock-history me-1"></i> {{lastUpdated}}
+      <div class="ms-auto ps-3 pe-2 border-start d-none d-lg-block" style="border-color: rgba(255,255,255,0.4) !important;">
+        <i class="bi bi-clock-history me-1"></i> <small>{{lastUpdated}}</small>
       </div>
 
     </div>
   </div>
 
-  <nav class="navbar navbar-expand-lg navbar-light bg-white">
+  <nav class="navbar navbar-expand-lg navbar-light bg-white py-3">
     <div class="container">
-      <a class="navbar-brand fw-bold text-primary fs-4" href="/">
+      <a class="navbar-brand fw-bold fs-4" href="/" style="color: #ac3900 !important;">
         <i class="bi bi-bank2 me-2"></i>İKİZ BANK
       </a>
       
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
         <span class="navbar-toggler-icon"></span>
       </button>
 
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-auto align-items-center">
-          <li class="nav-item">
-            <a class="nav-link btn btn-outline-primary px-4 mx-2 fw-semibold" routerLink="/login">Giriş Yap</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link btn btn-primary text-white px-4 fw-semibold" href="#">Müşteri Ol</a>
-          </li>
+          
+          @if (authService.currentUser(); as user) {
+            <li class="nav-item dropdown">
+              <button class="nav-link dropdown-toggle d-flex align-items-center p-0 border-0 bg-transparent shadow-none" 
+                      type="button" 
+                      id="userMenuButton"
+                      data-bs-toggle="dropdown" 
+                      aria-expanded="false">
+                
+                <div class="text-end me-3 d-none d-sm-block">
+                  <small class="text-muted d-block" style="font-size: 0.7rem; line-height: 1;">Hoş geldiniz,</small>
+                  <span class="fw-bold text-dark" style="font-size: 0.9rem;">{{ user.name }} {{ user.surname }}</span>
+                </div>
+
+                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" 
+                     style="width: 40px; height: 40px; background-color: #ac3900 !important;">
+                  {{ user.name[0] }}{{ user.surname[0] }}
+                </div>
+              </button>
+
+              <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 p-2 rounded-3" aria-labelledby="userMenuButton">
+                <li><a class="dropdown-item py-2 rounded-2" href="#"><i class="bi bi-person me-2"></i>Profilim</a></li>
+                <li><a class="dropdown-item py-2 rounded-2" href="#"><i class="bi bi-wallet2 me-2"></i>Hesaplarım</a></li>
+                <li><hr class="dropdown-divider mx-2"></li>
+                <li>
+                  <button class="dropdown-item py-2 rounded-2 text-danger border-0 bg-transparent" (click)="authService.logout()">
+                    <i class="bi bi-box-arrow-right me-2"></i>Güvenli Çıkış
+                  </button>
+                </li>
+              </ul>
+            </li>
+          } @else {
+            <li class="nav-item">
+              <button class="btn btn-outline-primary px-4 mx-2 fw-semibold rounded-pill" 
+                      style="color: #ac3900; border-color: #ac3900;"
+                      data-bs-toggle="modal" 
+                      data-bs-target="#loginModal">
+                Giriş Yap
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="btn btn-primary text-white px-4 fw-semibold rounded-pill shadow-sm" 
+                      style="background-color: #ac3900; border: none;">
+                Müşteri Ol
+              </button>
+            </li>
+          }
+
         </ul>
       </div>
     </div>
@@ -56,6 +98,18 @@
 
 </header>
 
-<div class="container mt-5">
+<div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body pt-0">
+        <app-login></app-login>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="container mt-4">
   <router-outlet></router-outlet>
 </div>
