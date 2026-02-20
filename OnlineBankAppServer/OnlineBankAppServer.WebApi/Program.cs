@@ -15,6 +15,17 @@ var builder = WebApplication.CreateBuilder(args);
 
 //   SERVÝSLER
 
+// Angular (Frontend) isteklerine izin vermek için CORS politikasýný ekliyoruz
+builder.Services.AddCors(opt =>
+{
+    opt.AddDefaultPolicy(p =>
+    {
+        p.AllowAnyHeader()
+         .AllowAnyMethod()
+         .AllowAnyOrigin();
+    });
+});
+
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("SqlServer"));
@@ -102,9 +113,13 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+
 WebApplication app = builder.Build();
 
 app.UseMiddleware<OnlineBankAppServer.WebApi.Middlewares.ExceptionMiddleware>();
+
+// CORS middleware'ini kullanýma alýyoruz (Routing ve Auth arasýnda olmasý en saðlýklýsýdýr)
+app.UseCors();
 
 if (app.Environment.IsDevelopment())
 {
