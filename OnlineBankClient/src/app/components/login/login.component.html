@@ -1,0 +1,43 @@
+<div class="text-center mb-4">
+  <div class="d-inline-block bg-primary text-white rounded-circle p-3 mb-3 shadow-sm" style="background-color: #ac3900 !important;">
+    <i class="bi bi-person-lock fs-2"></i>
+  </div>
+  <h3 class="fw-bold text-dark">Giriş Yap</h3>
+  <p class="text-muted small">Bireysel ve Kurumsal</p>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger py-2 small shadow-sm">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ errorMessage() }}
+  </div>
+}
+
+<form (ngSubmit)="onLogin()">
+  <div class="mb-3">
+    <label for="usernameInput" class="form-label small fw-medium">E-Posta</label>
+    <div class="input-group">
+      <span class="input-group-text bg-white border-end-0"><i class="bi bi-person text-muted"></i></span>
+      <input type="email" id="usernameInput" class="form-control border-start-0" name="email" [(ngModel)]="model.email" required placeholder="E-posta">
+    </div>
+  </div>
+
+  <div class="mb-4">
+    <label for="passwordInput" class="form-label small fw-medium">Şifre</label>
+    <div class="input-group">
+      <span class="input-group-text bg-white border-end-0"><i class="bi bi-shield-lock text-muted"></i></span>
+      <input type="password" id="passwordInput" class="form-control border-start-0" name="password" [(ngModel)]="model.password" required placeholder="••••••••">
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary w-100 fw-bold py-2 shadow-sm" [disabled]="isLoading()" style="background-color: #ac3900; border: none;">
+    @if (isLoading()) {
+      <span class="spinner-border spinner-border-sm"></span>
+    } @else {
+      Giriş Yap
+    }
+  </button>
+</form>
+
+<div class="text-center mt-3">
+  <a href="#" class="text-decoration-none small fw-medium" style="color: #ac3900;">Şifremi Unuttum</a>
+</div>

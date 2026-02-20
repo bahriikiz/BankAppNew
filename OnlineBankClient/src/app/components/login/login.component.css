@@ -1,0 +1,51 @@
+/* 1. Kart Efekti: Fare ile üzerine gelince hafifçe havaya kalkar ve gölgesi büyür */
+.card {
+  transition: all 0.3s ease-in-out;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* 2. Input Kutuları: Tıklanınca (Focus) Bankamızın Turuncu Rengini Alır */
+.form-control:focus {
+  border-color: #ac3900;
+  box-shadow: 0 0 0 0.25rem rgba(172, 57, 0, 0.15); /* Hafif turuncu parlama */
+}
+
+/* Input'a tıklanınca yanındaki ikonun da turuncu olması için */
+.input-group:focus-within .input-group-text i {
+  color: #ac3900 !important;
+  transition: color 0.3s ease-in-out;
+}
+
+/* 3. En Üstteki Yuvarlak İkon Arka Planı (Banka Rengi) */
+.bg-primary {
+  background-color: #ac3900 !important;
+}
+
+/* 4. Giriş Butonu Özel Efektleri */
+.btn-primary {
+  background-color: #ac3900;
+  border-color: #ac3900;
+  transition: all 0.3s ease;
+}
+
+/* Butonun üzerine gelindiğinde */
+.btn-primary:hover {
+  background-color: #d94d00; /* Biraz daha açık bir turuncu */
+  border-color: #d94d00;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(172, 57, 0, 0.3) !important;
+}
+
+/* Butona tıklandığı an */
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* 5. Yönlendirme Linki Rengi (Müşterimiz değil misiniz -> Hemen Başvur) */
+.text-primary {
+  color: #ac3900 !important;
+}
