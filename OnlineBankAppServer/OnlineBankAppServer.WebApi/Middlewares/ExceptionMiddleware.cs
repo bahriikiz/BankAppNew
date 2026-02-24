@@ -34,7 +34,8 @@ public sealed class ExceptionMiddleware
 
         // Eğer hata bizim fırlattığımız "Bakiye Yetersiz" gibi bir hata ise 400 (Bad Request) 
 
-        if (exception.Message == "Yetersiz bakiye." ||
+        if (exception is ArgumentException ||
+            exception.Message == "Yetersiz bakiye." ||
             exception.Message.Contains("bulunamadı"))
         {
             context.Response.StatusCode = (int)HttpStatusCode.BadRequest;

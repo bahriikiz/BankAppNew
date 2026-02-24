@@ -1,4 +1,5 @@
 ﻿using MediatR;
+using Microsoft.EntityFrameworkCore;
 using OnlineBankAppServer.Domain.Entities;
 using OnlineBankAppServer.Persistance;
 namespace OnlineBankAppServer.Application.Features.Auth.Commands.CreateUser;
@@ -8,13 +9,20 @@ internal sealed class CreateUserCommandHandler(AppDbContext context) : IRequestH
 {
     public async Task<string> Handle(CreateUserCommand request, CancellationToken cancellationToken)
     {
+        bool isEmailExists = await context.Users.AnyAsync(u => u.Email == request.Email, cancellationToken);
+
+        if (isEmailExists)
+        {
+            throw new ArgumentException("Bu e-posta adresi sisteme zaten kayıtlı!");
+        }
+
         string hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
         User user = new()
         {
             FirstName = request.FirstName,
             LastName = request.LastName,
             Email = request.Email,
-            PasswordHash = hashedPassword, // şifre hash leme işlemi
+            PasswordHash = hashedPassword,
             CreatedAt = DateTime.UtcNow,
             Accounts = [],
         };

@@ -6,8 +6,7 @@ import { Injectable, signal } from '@angular/core';
 })
 export class AuthService {
   private readonly apiUrl = 'https://localhost:7241/api/Auth/Login';
-  
-  // Kullanıcı bilgisini saklayan sinyal
+   
   currentUser = signal<{ name: string, surname: string } | null>(null);
 
   constructor(private readonly http: HttpClient) {
@@ -23,9 +22,19 @@ export class AuthService {
     return this.http.post(this.apiUrl, model);
   }
 
+  register(model: any) {
+    return this.http.post('https://localhost:7241/api/Auth/register', model);
+  }
+
   logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user_info');
     this.currentUser.set(null);
+  }
+  isAuthenticated(): boolean {
+    if (globalThis.window !== undefined) {
+      return !!localStorage.getItem('token');
+    }
+    return false;
   }
 }
