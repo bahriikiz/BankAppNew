@@ -4,6 +4,7 @@ namespace OnlineBankAppServer.Domain.Entities;
 
 public sealed class Account : Entity
 {
+    // --- BANKA HESABI ---
     public string Iban { get; set; } = string.Empty;
     public decimal Balance { get; set; } = 0;
     public string CurrencyType { get; set; } = "TRY";

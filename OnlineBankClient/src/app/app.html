@@ -33,7 +33,7 @@
 
   <nav class="navbar navbar-expand-lg navbar-light bg-white py-3">
     <div class="container">
-      <a class="navbar-brand fw-bold fs-4" href="/" style="color: #ac3900 !important;">
+      <a class="navbar-brand fw-bold fs-4" routerLink="/" style="color: #ac3900 !important; cursor: pointer;">
         <i class="bi bi-bank2 me-2"></i>İKİZ BANK
       </a>
       
@@ -64,8 +64,8 @@
               </button>
 
               <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 p-2 rounded-3" aria-labelledby="userMenuButton">
-                <li><a class="dropdown-item py-2 rounded-2" href="#"><i class="bi bi-person me-2"></i>Profilim</a></li>
-                <li><a class="dropdown-item py-2 rounded-2" href="#"><i class="bi bi-wallet2 me-2"></i>Hesaplarım</a></li>
+                <li><a class="dropdown-item py-2 rounded-2" routerLink="/profile" style="cursor: pointer;"><i class="bi bi-person me-2"></i>Profilim</a></li>
+                <li><a class="dropdown-item py-2 rounded-2" routerLink="/dashboard" style="cursor: pointer;"><i class="bi bi-wallet2 me-2"></i>Hesaplarım</a></li>
                 <li><hr class="dropdown-divider mx-2"></li>
                 <li>
                   <button class="dropdown-item py-2 rounded-2 text-danger border-0 bg-transparent" (click)="authService.logout()">
@@ -78,14 +78,14 @@
             <li class="nav-item">
               <button class="btn btn-outline-primary px-4 mx-2 fw-semibold rounded-pill" 
                       style="color: #ac3900; border-color: #ac3900;"
-                      data-bs-toggle="modal" 
-                      data-bs-target="#loginModal">
+                      routerLink="/login">
                 Giriş Yap
               </button>
             </li>
             <li class="nav-item">
               <button class="btn btn-primary text-white px-4 fw-semibold rounded-pill shadow-sm" 
-                      style="background-color: #ac3900; border: none;">
+                      style="background-color: #ac3900; border: none;"
+                      routerLink="/register">
                 Müşteri Ol
               </button>
             </li>
@@ -98,18 +98,6 @@
 
 </header>
 
-<div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
-    <div class="modal-content border-0 shadow-lg rounded-4">
-      <div class="modal-header border-0 pb-0">
-        <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Kapat"></button>
-      </div>
-      <div class="modal-body pt-0">
-        <app-login></app-login>
-      </div>
-    </div>
-  </div>
-</div>
 <div class="container mt-4">
   <router-outlet></router-outlet>
 </div>

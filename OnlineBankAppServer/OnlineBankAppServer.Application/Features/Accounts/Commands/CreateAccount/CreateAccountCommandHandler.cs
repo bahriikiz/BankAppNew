@@ -12,13 +12,18 @@ internal sealed class CreateAccountCommandHandler(
 {
     public async Task<string> Handle(CreateAccountCommand request, CancellationToken cancellationToken)
     {
-        var userIdClaim = httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier);
+        // JWT Token'dan kullanıcı kimliğini alıyoruz
+        var userIdClaim = httpContextAccessor.HttpContext?.User.FindFirst("UserId")
+                          ?? httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)
+                          ?? httpContextAccessor.HttpContext?.User.FindFirst("sub");
+
         if (userIdClaim is null) throw new Exception("Kullanıcı bulunamadı.");
         int userId = int.Parse(userIdClaim.Value);
 
         Random random = new Random();
         string ibanNumbers = string.Empty;
 
+        // 24 haneli rastgele IBAN numarası üretimi
         for (int i = 0; i < 24; i++)
         {
             ibanNumbers += random.Next(0, 10).ToString();
@@ -26,20 +31,33 @@ internal sealed class CreateAccountCommandHandler(
 
         string newIban = "TR" + ibanNumbers;
 
+        // Gerçekçi bir hesap numarası için IBAN'ın son 16 hanesini 
+        string newAccountNumber = ibanNumbers.Substring(8, 16);
+
         var account = new Account
         {
             Iban = newIban,
             CurrencyType = request.CurrencyType,
             Balance = 0,
-            BankId = request.BankId,
             UserId = userId,
             CreatedDate = DateTime.Now,
+
+            // --- AÇIK BANKACILIK & İKİZ BANK KONTROLLERİ ---
+            BankId = 1,
+            ProviderBank = "İKİZ BANK",
+            AccountName = "İKİZ BANK Vadesiz Hesap",
+            AccountNumber = newAccountNumber,
+            AvailableBalance = 0,
+            AccountType = "Vadesiz",
+            IsActive = true,
+            LastTransactionDate = DateTime.Now,
+
             Transactions = new List<BankTransaction>()
         };
 
         context.Accounts.Add(account);
         await context.SaveChangesAsync(cancellationToken);
 
-        return $"{request.CurrencyType} hesabınız başarıyla oluşturuldu. IBAN: {newIban}";
+        return $"İKİZ BANK {request.CurrencyType} hesabınız başarıyla oluşturuldu. IBAN: {newIban}";
     }
 }
