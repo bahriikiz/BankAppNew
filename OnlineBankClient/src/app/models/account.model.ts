@@ -1,8 +1,10 @@
 export interface Account {
-  id: number;
+  id: string;
   accountName: string;
   accountNumber: string;
   iban: string;
   balance: number;
   currency: string;
+  providerBank: string | null; 
+  userId: string;
 }

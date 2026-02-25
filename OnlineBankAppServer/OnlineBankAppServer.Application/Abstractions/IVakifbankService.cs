@@ -4,6 +4,5 @@ namespace OnlineBankAppServer.Application.Integration.Vakifbank;
 
 public interface IVakifbankService
 {
-    // Vakıfbank'tan hesap listesini asenkron olarak çekecek metod
-    Task<VakifbankAccountListResponseDto?> GetAccountsAsync(CancellationToken cancellationToken = default);
+    Task<VakifbankAccountListResponseDto?> GetAccountsAsync(string rizaNo, CancellationToken cancellationToken = default);
 }

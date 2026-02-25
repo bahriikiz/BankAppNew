@@ -2,7 +2,6 @@
   <div class="container">
     <div class="row justify-content-center">
       <div class="col-md-8 col-lg-5">
-        
         <div class="card auth-card border-0 shadow-lg rounded-4 overflow-hidden">
           <div class="card-body p-5">
             
@@ -13,9 +12,6 @@
               <h3 class="fw-bold" style="color: #2c3e50;">
                 {{ isLoginMode ? 'Dijital Şubeye Giriş' : 'Müşterimiz Olun' }}
               </h3>
-              <p class="text-muted small">
-                {{ isLoginMode ? 'Finansal özgürlüğünüz bir tık uzağınızda.' : 'Saniyeler içinde hesabınızı açın ve hemen başlayın.' }}
-              </p>
             </div>
 
             @if (errorMessage) { <div class="alert alert-danger py-2 small rounded-3">{{ errorMessage }}</div> }
@@ -43,14 +39,14 @@
                 <div class="row">
                   <div class="col-6 mb-3">
                     <div class="form-floating">
-                      <input type="text" class="form-control rounded-3" id="regName" name="firstName" [(ngModel)]="registerModel.firstName" placeholder="Ad" required>
-                      <label for="regName">Adınız</label>
+                      <input type="text" class="form-control rounded-3" id="regFirstName" name="firstName" [(ngModel)]="registerModel.firstName" placeholder="Ad" required>
+                      <label for="regFirstName">Adınız</label>
                     </div>
                   </div>
                   <div class="col-6 mb-3">
                     <div class="form-floating">
-                      <input type="text" class="form-control rounded-3" id="regSurname" name="lastName" [(ngModel)]="registerModel.lastName" placeholder="Soyad" required>
-                      <label for="regSurname">Soyadınız</label>
+                      <input type="text" class="form-control rounded-3" id="regLastName" name="lastName" [(ngModel)]="registerModel.lastName" placeholder="Soyad" required>
+                      <label for="regLastName">Soyadınız</label>
                     </div>
                   </div>
                 </div>
@@ -80,7 +76,6 @@
 
           </div>
         </div>
-
       </div>
     </div>
   </div>

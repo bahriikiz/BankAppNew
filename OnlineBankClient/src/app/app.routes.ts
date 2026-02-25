@@ -5,16 +5,17 @@ import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { ProfileComponent } from './components/profile/profile.component';
 
 export const routes: Routes = [
-  
+  // Herkesi karşılayan ana sayfa
   { path: '', component: HomeComponent, pathMatch: 'full' }, 
   
-  // 2. Kimlik doğrulama işlemleri
+  // Giriş ve Kayıt sayfaları
   { path: 'login', component: LoginComponent },
   { path: 'register', component: LoginComponent }, 
   
-  // 3. Müşteri işlemleri
+  // SADECE GİRİŞ YAPANLAR İÇİN: Dashboard ve Profil
   { path: 'dashboard', component: DashboardComponent },
   { path: 'profile', component: ProfileComponent },
   
+  // Yanlış URL'leri ana sayfaya yolla
   { path: '**', redirectTo: '' }
 ];

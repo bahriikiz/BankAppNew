@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -11,69 +11,80 @@ import { AuthService } from '../../services/auth.service';
   templateUrl: './login.component.html',
   styleUrl: './login.component.css'
 })
-export class LoginComponent {
-  public isLoginMode: boolean = true;
-  public isLoading: boolean = false;
-  public errorMessage: string = '';
-  public successMessage: string = '';
+export class LoginComponent implements OnInit {
+  public isLoginMode = true;
+  public isLoading = false;
+  public errorMessage = '';
+  public successMessage = '';
 
-  // Backend'in birebir beklediği property isimleri
   public loginModel = { email: '', password: '' };
   public registerModel = { firstName: '', lastName: '', email: '', password: '' };
 
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
 
-  public toggleMode(): void {
+  // SAYFA YÜKLENDİĞİNDE ÇALIŞAN KISIM
+  ngOnInit() {
+    // Eğer adres çubuğunda 'register' yazıyorsa, Kayıt Ol modunu aktif et
+    if (this.router.url.includes('register')) {
+      this.isLoginMode = false;
+    } else {
+      this.isLoginMode = true;
+    }
+  }
+
+  toggleMode() {
     this.isLoginMode = !this.isLoginMode;
     this.errorMessage = '';
     this.successMessage = '';
   }
 
-  public onLogin(): void {
+  onLogin() {
     this.isLoading = true;
     this.errorMessage = '';
-    
     this.authService.login(this.loginModel).subscribe({
       next: (res: any) => {
-        localStorage.setItem('token', res.accessToken);
-        
-        // Token içinden kullanıcı adını çözüyoruz
-        const payload = JSON.parse(atob(res.accessToken.split('.')[1]));
-        const userInfo = { name: payload.Name, surname: payload.Surname };
-        
-        localStorage.setItem('user_info', JSON.stringify(userInfo));
-        this.authService.currentUser.set(userInfo);
-
-        this.isLoading = false;
-        this.router.navigate(['/dashboard']);
+        const token = res.token || res.Token; 
+        if (token) {
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const fullName = payload.fullName || 'Misafir Kullanıcı';
+            const nameParts = fullName.split(' ');
+            const userInfo = { 
+              name: nameParts[0] || 'M', 
+              surname: nameParts.length > 1 ? nameParts[nameParts.length - 1] : 'K' 
+            };
+            this.authService.setSession(token, userInfo);
+          } catch (e) {
+            console.error("Token çözülemedi", e);
+          }
+          this.isLoading = false;
+          this.router.navigate(['/dashboard']);
+        } else {
+          this.isLoading = false;
+          this.errorMessage = "Sunucudan geçerli bir anahtar alınamadı.";
+        }
       },
-      error: (err) => {
+      error: (err: any) => {
         this.isLoading = false;
         this.errorMessage = err.error?.message || 'E-posta veya şifre hatalı!';
       }
     });
   }
 
-  public onRegister(): void {
+  onRegister() {
     this.isLoading = true;
     this.errorMessage = '';
-    
     this.authService.register(this.registerModel).subscribe({
-      next: (res: any) => {
-        this.successMessage = 'Hesabınız başarıyla oluşturuldu. Lütfen giriş yapınız.';
-        
-        // Kayıt başarılıysa, giriş ekranındaki E-postayı otomatik doldur
-        this.loginModel.email = this.registerModel.email; 
-        
-        // Formu temizle
-        this.registerModel = { firstName: '', lastName: '', email: '', password: '' };
-        this.isLoginMode = true; 
+      next: () => {
+        this.successMessage = 'Hesabınız başarıyla oluşturuldu. Giriş yapabilirsiniz.';
+        this.loginModel.email = this.registerModel.email;
+        this.isLoginMode = true;
         this.isLoading = false;
       },
-      error: (err) => {
+      error: (err: any) => {
         this.isLoading = false;
-        this.errorMessage = err.error?.message || 'Kayıt işlemi sırasında bir hata oluştu.';
+        this.errorMessage = err.error?.message || 'Kayıt işlemi başarısız.';
       }
     });
   }

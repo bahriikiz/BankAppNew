@@ -2,5 +2,10 @@
 
 namespace OnlineBankAppServer.Application.Features.Accounts.Commands.SyncVakifbankAccounts;
 
-// Kullanıcının ID'sini alıp, işlemin sonucunu (Response) dön
-public sealed record SyncVakifbankAccountsCommand(int UserId) : IRequest<SyncVakifbankAccountsCommandResponse>;
+// Dışardan rıza no alacak
+public sealed record SyncVakifbankAccountsCommand(
+    string RizaNo
+) : IRequest<SyncVakifbankAccountsCommandResponse>
+{
+    public int UserId { get; set; }
+}

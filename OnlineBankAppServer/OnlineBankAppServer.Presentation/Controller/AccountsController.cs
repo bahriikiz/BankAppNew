@@ -80,9 +80,8 @@ public sealed class AccountsController : ApiController
     }
 
     [HttpPost("sync-vakifbank")]
-    public async Task<IActionResult> SyncVakifbankAccounts(CancellationToken cancellationToken)
+    public async Task<IActionResult> SyncVakifbank([FromBody] SyncVakifbankAccountsCommand request, CancellationToken cancellationToken)
     {
-        // 1. Token'dan işlemi yapan kullanıcının ID'sini alıyoruz
         var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "UserId")
                           ?? User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)
                           ?? User.Claims.FirstOrDefault(c => c.Type == "sub");
@@ -94,10 +93,10 @@ public sealed class AccountsController : ApiController
             return BadRequest(new { Message = "Geçersiz kullanıcı kimliği." });
         }
 
-        // 2. Komutu (Command) gönderip işlemi başlatıyoruz
-        var response = await _mediator.Send(new SyncVakifbankAccountsCommand(userId), cancellationToken);
+        request.UserId = userId;
 
-        // 3. İşlem sonucuna göre Frontend'e HTTP yanıtı dönüyoruz
+        var response = await _mediator.Send(request, cancellationToken);
+
         if (!response.IsSuccess)
         {
             return BadRequest(new { Message = response.Message });
