@@ -15,12 +15,12 @@ public sealed class VakifbankService : IVakifbankService
     {
         _httpClient = httpClient;
         _configuration = configuration;
-
         string baseUrl = _configuration["VakifBankB2B:BaseUrl"] ?? throw new ArgumentNullException("BaseUrl eksik!");
         _httpClient.BaseAddress = new Uri(baseUrl);
     }
 
-    private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
+    // Parametre olarak rizaNo eklendi
+    private async Task<string> GetAccessTokenAsync(string rizaNo, CancellationToken cancellationToken)
     {
         var tokenUrl = _configuration["VakifBankB2B:TokenUrl"] ?? throw new ArgumentNullException("TokenUrl eksik!");
 
@@ -30,12 +30,11 @@ public sealed class VakifbankService : IVakifbankService
             { "client_secret", _configuration["VakifBankB2B:ClientSecret"]! },
             { "grant_type", "b2b_credentials" },
             { "scope", _configuration["VakifBankB2B:Scope"]! },
-            { "consentId", _configuration["VakifBankB2B:ConsentId"]! },
+            { "consentId", rizaNo },
             { "resource", _configuration["VakifBankB2B:Resource"]! }
         };
 
         var content = new FormUrlEncodedContent(requestData);
-
         var response = await _httpClient.PostAsync(tokenUrl, content, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
@@ -45,13 +44,13 @@ public sealed class VakifbankService : IVakifbankService
         }
 
         var tokenResponse = await response.Content.ReadFromJsonAsync<VakifbankTokenResponseDto>(cancellationToken: cancellationToken);
-
         return tokenResponse?.AccessToken ?? throw new Exception("Vakıfbank Token boş döndü!");
     }
 
-    public async Task<VakifbankAccountListResponseDto?> GetAccountsAsync(CancellationToken cancellationToken = default)
+    // Metodun imzası interface ile uyumlu 
+    public async Task<VakifbankAccountListResponseDto?> GetAccountsAsync(string rizaNo, CancellationToken cancellationToken = default)
     {
-        string accessToken = await GetAccessTokenAsync(cancellationToken);
+        string accessToken = await GetAccessTokenAsync(rizaNo, cancellationToken);
 
         var apiUrl = _configuration["VakifBankB2B:ApiUrl"] ?? throw new ArgumentNullException("ApiUrl eksik!");
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
@@ -68,7 +67,6 @@ public sealed class VakifbankService : IVakifbankService
         }
 
         var result = await response.Content.ReadFromJsonAsync<VakifbankAccountListResponseDto>(cancellationToken: cancellationToken);
-
         return result;
     }
 }

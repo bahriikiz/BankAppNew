@@ -21,16 +21,25 @@ public sealed class SyncVakifbankAccountsCommandHandler : IRequestHandler<SyncVa
 
     public async Task<SyncVakifbankAccountsCommandResponse> Handle(SyncVakifbankAccountsCommand request, CancellationToken cancellationToken)
     {
-        var vakifbankResponse = await _vakifbankService.GetAccountsAsync(cancellationToken);
+        // ARTIK FRONTEND'DEN GELEN RIZA NO'YI VAKIFBANK'A GÖNDER!
+        var vakifbankResponse = await _vakifbankService.GetAccountsAsync(request.RizaNo, cancellationToken);
 
         if (vakifbankResponse?.Data?.Accounts == null || !vakifbankResponse.Data.Accounts.Any())
         {
-            return new SyncVakifbankAccountsCommandResponse(false, "Vakıfbank'tan hesap bilgisi alınamadı.");
+            return new SyncVakifbankAccountsCommandResponse(false, "Vakıfbank'tan hesap bilgisi alınamadı veya Rıza No geçersiz.");
         }
 
         foreach (var vAccount in vakifbankResponse.Data.Accounts)
         {
-            
+          
+            bool isTakenBySomeoneElse = await _context.Accounts
+                .AnyAsync(a => a.Iban == vAccount.IBAN && a.UserId != request.UserId, cancellationToken);
+
+            if (isTakenBySomeoneElse)
+            {
+                throw new ArgumentException($"Güvenlik İhlali: {vAccount.IBAN} numaralı hesap zaten başka bir müşteriye tanımlı! Başkasına ait hesapları bağlayamazsınız.");
+            }
+
             var existingAccount = await _context.Accounts
                 .FirstOrDefaultAsync(a => a.Iban == vAccount.IBAN && a.UserId == request.UserId, cancellationToken);
 
@@ -54,13 +63,12 @@ public sealed class SyncVakifbankAccountsCommandHandler : IRequestHandler<SyncVa
                     Iban = vAccount.IBAN,
                     Balance = currentBalance,
                     AvailableBalance = availableBalance,
-                    CurrencyType = vAccount.CurrencyCode, 
+                    CurrencyType = vAccount.CurrencyCode,
                     ProviderBank = "Vakifbank",
                     AccountType = vAccount.AccountType,
                     IsActive = vAccount.AccountStatus == "A",
                     LastTransactionDate = vAccount.LastTransactionDate,
-                    BankId = 1, 
-                 
+                    BankId = 1,
                     Transactions = new List<BankTransaction>()
                 };
 

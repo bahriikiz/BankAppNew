@@ -5,36 +5,39 @@ import { Injectable, signal } from '@angular/core';
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly apiUrl = 'https://localhost:7241/api/Auth/Login';
-   
+  private readonly apiUrl = 'https://localhost:7241/api/Auth';
+  
+  // Güvenlik: Token sadece RAM'de duracak. Sayfa yenilenirse (F5) uçup gidecek!
+  private token: string | null = null;
   currentUser = signal<{ name: string, surname: string } | null>(null);
 
-  constructor(private readonly http: HttpClient) {
-    if ( globalThis.window !== undefined) {
-      const savedUser = localStorage.getItem('user_info');
-      if (savedUser) {
-        this.currentUser.set(JSON.parse(savedUser));
-      }
-    }
-  }
+  constructor(private readonly http: HttpClient) {}
 
   login(model: any) {
-    return this.http.post(this.apiUrl, model);
+    return this.http.post(`${this.apiUrl}/Login`, model);
   }
 
   register(model: any) {
-    return this.http.post('https://localhost:7241/api/Auth/register', model);
+    return this.http.post(`${this.apiUrl}/register`, model);
+  }
+
+  // Giriş başarılı olduğunda bu metot çalışır ve verileri geçici hafızaya alır
+  setSession(token: string, userInfo: { name: string, surname: string }) {
+    this.token = token;
+    this.currentUser.set(userInfo);
+  }
+
+  // Diğer servislerin (AccountService gibi) token'a ulaşabilmesi için
+  getToken(): string | null {
+    return this.token;
+  }
+
+  isAuthenticated(): boolean {
+    return this.token !== null;
   }
 
   logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user_info');
+    this.token = null;
     this.currentUser.set(null);
-  }
-  isAuthenticated(): boolean {
-    if (globalThis.window !== undefined) {
-      return !!localStorage.getItem('token');
-    }
-    return false;
   }
 }
