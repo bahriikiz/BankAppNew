@@ -1,10 +1,14 @@
 export interface Account {
-  id: string;
+  id: string; 
+  userId: string;
   accountName: string;
   accountNumber: string;
   iban: string;
   balance: number;
-  currency: string;
-  providerBank: string | null; 
-  userId: string;
+  availableBalance: number;
+  currencyType: string; 
+  providerBank: string;
+  accountType: string;
+  isActive: boolean;
+  lastTransactionDate: string;
 }

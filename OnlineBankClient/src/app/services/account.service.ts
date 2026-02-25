@@ -26,9 +26,26 @@ export class AccountService {
     if (!this.authService.isAuthenticated()) return of([]);
     return this.http.get<Account[]>(`${this.apiUrl}/get-my-accounts`, { headers: this.getHeaders() });
   }
-
+  
+  // Vakıfbank hesaplarını senkronize etme metodu
   syncVakifbankAccounts(rizaNo: string): Observable<any> {
     if (!this.authService.isAuthenticated()) return of(null);
     return this.http.post(`${this.apiUrl}/sync-vakifbank`, { rizaNo }, { headers: this.getHeaders() });
   }
+  
+  // Yeni İKİZ BANK Hesabı Açma İsteği
+  createAccount(model: { accountName: string, currencyType: string }): Observable<any> {
+    if (!this.authService.isAuthenticated()) return of(null);
+    return this.http.post(`${this.apiUrl}/create-account`, model, { headers: this.getHeaders() });
+  }
+
+  // ID'ye Göre Hesap Detayı ve İşlem Geçmişi Getirme
+  getAccountDetails(accountId: number | string): Observable<any> {
+    if (!this.authService.isAuthenticated()) return of(null);
+    return this.http.get(`${this.apiUrl}/${accountId}`, { headers: this.getHeaders() });
+  }
+  // Para Transferi Metodu
+  transferMoney(payload: any): Observable<any> {
+  return this.http.post(`${this.apiUrl}/Transactions/MoneyTransfer`, payload, { headers: this.getHeaders() });
+}
 }

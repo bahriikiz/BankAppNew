@@ -1,0 +1,67 @@
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+      
+      <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="p-4 text-white text-center" style="background: linear-gradient(135deg, #A90432 0%, #FDB912 100%);">
+          <i class="bi bi-send-fill display-4"></i>
+          <h3 class="fw-bold mt-2">Para Transferi</h3>
+          <p class="mb-0 opacity-75">Hızlı ve Güvenli Transfer</p>
+        </div>
+
+        <div class="card-body p-4 p-md-5">
+          <form (ngSubmit)="onSubmit()">
+            
+            <div class="mb-4">
+  <label for="senderAccount" class="form-label fw-bold text-muted small uppercase">GÖNDEREN HESAP</label>
+  <select id="senderAccount" class="form-select form-select-lg rounded-3 border-2" [(ngModel)]="senderAccountId" name="sender">
+    @for (acc of myAccounts(); track acc.id) {
+      <option [value]="acc.id">
+        {{ acc.accountName }} - {{ acc.balance | number:'1.2-2' }} {{ acc.currencyType }}
+      </option>
+    }
+  </select>
+</div>
+
+<div class="mb-4">
+  <label for="receiverIban" class="form-label fw-bold text-muted small uppercase">ALICI IBAN</label>
+  <div class="input-group input-group-lg">
+    <span class="input-group-text bg-light border-2 border-end-0 text-muted">TR</span>
+    <input type="text" id="receiverIban" class="form-control border-2 border-start-0 ps-0 rounded-end-3" 
+           placeholder="0000 0000 0000 0000 0000 00"
+           [(ngModel)]="receiverIban" name="iban">
+  </div>
+</div>
+
+<div class="mb-4">
+  <label for="amount" class="form-label fw-bold text-muted small uppercase">GÖNDERİLECEK TUTAR</label>
+  <div class="input-group input-group-lg">
+    <input type="number" id="amount" class="form-control border-2 rounded-start-3" placeholder="0.00"
+           [(ngModel)]="amount" name="amount">
+    <span class="input-group-text bg-white border-2">₺</span>
+  </div>
+</div>
+
+<div class="mb-4">
+  <label for="description" class="form-label fw-bold text-muted small uppercase">AÇIKLAMA</label>
+  <textarea id="description" class="form-control border-2 rounded-3" rows="2" 
+            placeholder="Örn: Kira Ödemesi" [(ngModel)]="description" name="desc"></textarea>
+</div>
+
+            <button type="submit" [disabled]="isSubmitting()" 
+                    class="btn btn-lg w-100 text-white fw-bold rounded-pill shadow mt-3"
+                    style="background-color: #A90432; transition: all 0.3s;">
+              @if (isSubmitting()) {
+                <span class="spinner-border spinner-border-sm me-2"></span> İşlem Yapılıyor...
+              } @else {
+                <i class="bi bi-shield-check me-2"></i> Transferi Tamamla
+              }
+            </button>
+
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

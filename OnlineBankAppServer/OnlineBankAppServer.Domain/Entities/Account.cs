@@ -22,4 +22,5 @@ public sealed class Account : Entity
     public string AccountType { get; set; } = "Vadesiz";
     public bool IsActive { get; set; } = true; 
     public DateTime? LastTransactionDate { get; set; }
+    public string? RizaNo { get; set; } // Açık Bankacılık onay kodu
 }

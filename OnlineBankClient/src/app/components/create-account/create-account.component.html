@@ -1,0 +1,53 @@
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+      
+      <a routerLink="/dashboard" class="btn btn-link text-decoration-none text-muted mb-4 px-0">
+        <i class="bi bi-arrow-left me-2"></i> Dashboard'a Dön
+      </a>
+
+      <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+        
+        <div class="card-header text-white p-4 border-0" style="background: linear-gradient(135deg, #ac3900 0%, #d35400 100%);">
+          <h4 class="mb-0 fw-bold"><i class="bi bi-wallet2 me-2"></i> Yeni Vadesiz Hesap</h4>
+          <p class="mb-0 mt-1 small opacity-75">İKİZ BANK güvencesiyle anında hesap açın.</p>
+        </div>
+
+        <div class="card-body p-4 p-md-5">
+          
+          @if (errorMessage()) {
+            <div class="alert alert-danger py-2 small rounded-3">{{ errorMessage() }}</div>
+          }
+
+          <form (ngSubmit)="onSubmit()">
+            
+            <div class="mb-4">
+              <label for="accName" class="form-label fw-medium text-muted small">HESAP ADI</label>
+              <input type="text" class="form-control form-control-lg rounded-3" id="accName" name="accountName" 
+                     [(ngModel)]="model.accountName" placeholder="Örn: Maaş Hesabım, Tatil Birikimim" required>
+            </div>
+
+            <div class="mb-5">
+              <label for="currency" class="form-label fw-medium text-muted small">PARA BİRİMİ</label>
+              <select class="form-select form-select-lg rounded-3" id="currency" name="currencyType" [(ngModel)]="model.currencyType">
+                <option value="TRY">TRY - Türk Lirası</option>
+                <option value="USD">USD - Amerikan Doları</option>
+                <option value="EUR">EUR - Euro</option>
+                <option value="GBP">GBP - İngiliz Sterlini</option>
+                <option value="XAU">XAU - Altın (Gram)</option>
+              </select>
+            </div>
+
+            <button type="submit" class="btn text-white w-100 py-3 rounded-pill fw-bold shadow-sm" 
+                    style="background-color: #2c3e50;" [disabled]="isLoading()">
+              @if (isLoading()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+              Hesabı Oluştur ve Aktif Et
+            </button>
+            
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
