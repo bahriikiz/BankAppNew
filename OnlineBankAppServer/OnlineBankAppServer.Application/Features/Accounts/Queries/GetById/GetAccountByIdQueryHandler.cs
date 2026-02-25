@@ -70,7 +70,7 @@ internal sealed class GetAccountByIdQueryHandler(
             account.Id,
             account.Iban,
             account.Balance,
-            account.CurrencyType ==" 1" ? "TRY" : "USD", 
+            account.CurrencyType ?? "TRY", 
             allTransactions
         );
     }

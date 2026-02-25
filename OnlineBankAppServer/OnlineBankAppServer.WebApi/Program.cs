@@ -113,6 +113,7 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddHostedService<OnlineBankAppServer.WebApi.BackgroundServices.OpenBankingSyncWorker>();
 
 WebApplication app = builder.Build();
 

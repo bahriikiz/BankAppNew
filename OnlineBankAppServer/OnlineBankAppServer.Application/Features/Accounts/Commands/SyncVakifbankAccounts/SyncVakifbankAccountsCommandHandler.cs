@@ -52,6 +52,7 @@ public sealed class SyncVakifbankAccountsCommandHandler : IRequestHandler<SyncVa
                 existingAccount.AvailableBalance = availableBalance;
                 existingAccount.IsActive = vAccount.AccountStatus == "A";
                 existingAccount.LastTransactionDate = vAccount.LastTransactionDate;
+                existingAccount.RizaNo = request.RizaNo;
             }
             else
             {
@@ -69,6 +70,7 @@ public sealed class SyncVakifbankAccountsCommandHandler : IRequestHandler<SyncVa
                     IsActive = vAccount.AccountStatus == "A",
                     LastTransactionDate = vAccount.LastTransactionDate,
                     BankId = 1,
+                    RizaNo = request.RizaNo,
                     Transactions = new List<BankTransaction>()
                 };
 

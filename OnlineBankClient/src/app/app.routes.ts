@@ -3,6 +3,9 @@ import { HomeComponent } from './components/home/home.component';
 import { LoginComponent } from './components/login/login.component';
 import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { ProfileComponent } from './components/profile/profile.component';
+import { CreateAccountComponent } from './components/create-account/create-account.component';
+import { AccountDetailsComponent } from './components/account-details/account-details.component';
+import { MoneyTransferComponent } from './components/money-transfer/money-transfer.companent';
 
 export const routes: Routes = [
   // Herkesi karşılayan ana sayfa
@@ -12,10 +15,14 @@ export const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: 'register', component: LoginComponent }, 
   
-  // SADECE GİRİŞ YAPANLAR İÇİN: Dashboard ve Profil
+  // SADECE GİRİŞ YAPANLAR İÇİN: Dashboard, Profil ve Hesap Açma
   { path: 'dashboard', component: DashboardComponent },
   { path: 'profile', component: ProfileComponent },
+  { path: 'create-account', component: CreateAccountComponent },
   
-  // Yanlış URL'leri ana sayfaya yolla
+  { path: 'account/:id', component: AccountDetailsComponent }, // Hesap detayları için dinamik rota
+  { path: 'transfer', component: MoneyTransferComponent }, // Para transferi sayfası
+  
+  // DİKKAT: Yanlış URL'leri ana sayfaya yollayan Catch-All rotası EN SONDA olmalıdır!
   { path: '**', redirectTo: '' }
 ];
