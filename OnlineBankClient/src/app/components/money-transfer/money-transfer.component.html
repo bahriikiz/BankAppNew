@@ -29,18 +29,22 @@
     <span class="input-group-text bg-light border-2 border-end-0 text-muted">TR</span>
     <input type="text" id="receiverIban" class="form-control border-2 border-start-0 ps-0 rounded-end-3" 
            placeholder="0000 0000 0000 0000 0000 00"
-           [(ngModel)]="receiverIban" name="iban">
+           [(ngModel)]="TargetIban" name="iban">
   </div>
 </div>
 
 <div class="mb-4">
-  <label for="amount" class="form-label fw-bold text-muted small uppercase">GÖNDERİLECEK TUTAR</label>
-  <div class="input-group input-group-lg">
-    <input type="number" id="amount" class="form-control border-2 rounded-start-3" placeholder="0.00"
-           [(ngModel)]="amount" name="amount">
-    <span class="input-group-text bg-white border-2">₺</span>
-  </div>
-</div>
+              <label for="amount" class="form-label fw-bold text-muted small uppercase">GÖNDERİLECEK TUTAR</label>
+              <div class="input-group input-group-lg">
+                <input type="number" id="amount" class="form-control border-2 rounded-start-3" placeholder="0.00"
+                       [(ngModel)]="amount" name="amount">
+                
+                <span class="input-group-text bg-white border-2 fw-bold text-dark">
+                  {{ getSelectedCurrencySymbol() }}
+                </span>
+                
+              </div>
+            </div>
 
 <div class="mb-4">
   <label for="description" class="form-label fw-bold text-muted small uppercase">AÇIKLAMA</label>
