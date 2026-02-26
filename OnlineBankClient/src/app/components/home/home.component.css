@@ -23,7 +23,7 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(to bottom right, #ffffff, #f1f3f5);
+  background: linear-gradient(to bottom right, #A90432, #FDB912);
   border: 1px solid rgba(0,0,0,0.05);
   transform: perspective(1000px) rotateY(-15deg) rotateX(5deg);
   transition: transform 0.5s ease;

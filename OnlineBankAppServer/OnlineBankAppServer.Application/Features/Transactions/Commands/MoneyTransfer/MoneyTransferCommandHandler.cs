@@ -45,8 +45,19 @@ internal sealed class MoneyTransferCommandHandler(
         // 3. Bakiye Kontrolü
         if (sourceAccount.Balance < request.Amount)
             throw new Exception("Yetersiz bakiye.");
-        // 3.1 Transfer Limiti 
-        decimal dailyLimit = sourceAccount.CurrencyType == "1" ? 100000m : 3000m;
+
+        // 3.1 Her Döviz Cinsine Özel Transfer Limiti Belirleme
+        // Trim ve ToUpper ekleyerek büyük/küçük harf hatalarını ve boşlukları önlüyoruz.
+        string currencyCode = sourceAccount.CurrencyType?.Trim().ToUpper() ?? "TRY";
+
+        decimal dailyLimit = currencyCode switch
+        {
+            "TRY" or "TL" or "1" => 1000000m,  // TL hesabı (veya eski "1" kayıtları) için 1 Milyon TL
+            "USD" or "2" => 75000m,    // Dolar hesabı (veya eski "2" kayıtları) için 75.000 Dolar
+            "EUR" or "3" => 50000m,    // Euro hesabı (veya eski "3" kayıtları) için 50.000 Euro
+            "XAU" or "4" => 100m,      // Altın hesabı (veya eski "4" kayıtları) için 100 Gram
+            _ => 10000m     // Bilinmeyen diğer dövizler için varsayılan 10.000
+        };
 
         var today = DateTime.Today;
 
@@ -59,7 +70,6 @@ internal sealed class MoneyTransferCommandHandler(
         if (todaysTotalTransfer + request.Amount > dailyLimit)
         {
             decimal remainingLimit = dailyLimit - todaysTotalTransfer;
-            string currencyCode = sourceAccount.CurrencyType == "1" ? "TRY" : "USD";
 
             // Eğer daha önceden limiti doldurduysa farklı, doldurmadıysa farklı mesaj verelim
             if (remainingLimit <= 0)
@@ -85,9 +95,29 @@ internal sealed class MoneyTransferCommandHandler(
         // Para birimleri farklıysa canlı kuru al
         if (sourceAccount.CurrencyType != targetAccount.CurrencyType)
         {
+            // Eski veri tabanı kayıtlarındaki "1, 2, 3, 4" rakamlarını gerçek kur kodlarına çevir
+            string sourceCurrencyCode = sourceAccount.CurrencyType?.Trim().ToUpper() switch
+            {
+                "1" => "TRY",
+                "2" => "USD",
+                "3" => "EUR",
+                "4" => "XAU",
+                var c => c ?? "TRY"
+            };
+
+            string targetCurrencyCode = targetAccount.CurrencyType?.Trim().ToUpper() switch
+            {
+                "1" => "TRY",
+                "2" => "USD",
+                "3" => "EUR",
+                "4" => "XAU",
+                var c => c ?? "TRY"
+            };
+
+            // Çevrilmiş TEMİZ kodlarla Vakıfbank'a istek at
             decimal rate = await exchangeService.GetRateAsync(
-                sourceAccount.CurrencyType.ToString(),
-                targetAccount.CurrencyType.ToString(),
+                sourceCurrencyCode,
+                targetCurrencyCode,
                 cancellationToken);
 
             amountToCredit = request.Amount * rate;

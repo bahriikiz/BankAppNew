@@ -46,6 +46,7 @@ export class AccountService {
   }
   // Para Transferi Metodu
   transferMoney(payload: any): Observable<any> {
-  return this.http.post(`${this.apiUrl}/Transactions/MoneyTransfer`, payload, { headers: this.getHeaders() });
+    const baseUrl = 'https://localhost:7241/api';
+  return this.http.post(`${baseUrl}/Transactions/transfer`, payload, { headers: this.getHeaders() });
 }
 }

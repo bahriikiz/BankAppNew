@@ -5,7 +5,7 @@ import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { ProfileComponent } from './components/profile/profile.component';
 import { CreateAccountComponent } from './components/create-account/create-account.component';
 import { AccountDetailsComponent } from './components/account-details/account-details.component';
-import { MoneyTransferComponent } from './components/money-transfer/money-transfer.companent';
+import { MoneyTransferComponent } from './components/money-transfer/money-transfer.component';
 
 export const routes: Routes = [
   // Herkesi karşılayan ana sayfa
