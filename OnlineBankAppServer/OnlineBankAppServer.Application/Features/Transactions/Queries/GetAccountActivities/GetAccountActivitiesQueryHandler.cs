@@ -67,7 +67,8 @@ internal sealed class GetAccountActivitiesQueryHandler(
                         Amount = amount,
                         Description = t.Description ?? "Açıklama Yok",
                         TransactionDate = transactionDate,
-                        CreatedDate = transactionDate
+                        CreatedDate = transactionDate,
+                        TransactionReference = t.TransactionId
                     });
                 }
             }

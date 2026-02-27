@@ -69,4 +69,9 @@ export class AccountService {
     const baseUrl = 'https://localhost:7241/api';
     return this.http.post(`${baseUrl}/Beneficiaries/Create`, payload, { headers: this.getHeaders() });
   }
+
+  downloadReceipt(accountId: number, transactionId: string, format: string = '2'): Observable<any> {
+    const baseUrl = 'https://localhost:7241/api';
+    return this.http.get(`${baseUrl}/Transactions/${accountId}/receipt/${transactionId}?format=${format}`, { headers: this.getHeaders() });
+  }
 }
