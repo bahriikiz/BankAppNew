@@ -105,9 +105,23 @@
                       </div>
                     </div>
 
-                    <h5 class="mb-0 fw-bold flex-shrink-0" [ngClass]="txn.amount > 0 ? 'text-success' : 'text-danger'">
-                      {{ txn.amount > 0 ? '+' : '' }}{{ txn.amount | number:'1.2-2' }} {{ accountDetails().currency }}
-                    </h5>
+                    <div class="d-flex align-items-center gap-3">
+                      <h5 class="mb-0 fw-bold flex-shrink-0" [ngClass]="txn.amount > 0 ? 'text-success' : 'text-danger'">
+                        {{ txn.amount > 0 ? '+' : '' }}{{ txn.amount | number:'1.2-2' }} {{ accountDetails().currency }}
+                      </h5>
+
+                      @if (txn.transactionReference) {
+                        <button class="btn btn-sm btn-outline-secondary rounded-pill shadow-sm flex-shrink-0" 
+                                (click)="getReceipt(txn)"
+                                [disabled]="isReceiptLoading() === (txn.id || txn.transactionReference)">
+                          @if (isReceiptLoading() === (txn.id || txn.transactionReference)) {
+                            <span class="spinner-border spinner-border-sm"></span>
+                          } @else {
+                            <i class="bi bi-file-earmark-text me-1"></i> Dekont
+                          }
+                        </button>
+                      }
+                    </div>
                     
                   </li>
                 }
@@ -120,3 +134,40 @@
     </div>
   </div>
 </div>
+
+@if (showReceiptModal()) {
+  <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.6); z-index: 1050;">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        
+        <div class="modal-header bg-light border-bottom-0 rounded-top-4">
+          <h5 class="modal-title fw-bold text-dark">
+            <i class="bi bi-file-earmark-text-fill text-danger me-2"></i>İşlem Dekontu
+          </h5>
+          <button type="button" class="btn-close" (click)="closeReceiptModal()" aria-label="Kapat"></button>
+        </div>
+        
+        <div class="modal-body p-4 bg-white">
+          <pre class="bg-light p-3 rounded-3 text-muted border" 
+               style="white-space: pre-wrap; font-family: monospace; font-size: 0.9rem; max-height: 400px; overflow-y: auto;">{{ currentReceiptText() }}</pre>
+        </div>
+        
+        <div class="modal-footer border-top-0 bg-light rounded-bottom-4">
+          <button type="button" class="btn btn-outline-secondary rounded-pill fw-bold px-4" (click)="closeReceiptModal()">Kapat</button>
+          
+          <button type="button" class="btn rounded-pill text-white fw-bold shadow-sm px-4" 
+                  style="background-color: #A90432;" 
+                  (click)="downloadPdf()" 
+                  [disabled]="isPdfLoading()">
+            @if (isPdfLoading()) {
+              <span class="spinner-border spinner-border-sm me-2"></span> İndiriliyor...
+            } @else {
+              <i class="bi bi-file-earmark-pdf-fill me-1"></i> PDF Olarak İndir
+            }
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+}
