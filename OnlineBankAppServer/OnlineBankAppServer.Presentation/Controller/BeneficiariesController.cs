@@ -11,13 +11,16 @@ public sealed class BeneficiariesController : ApiController
 {
     public BeneficiariesController(IMediator mediator) : base(mediator) { }
 
-    [HttpPost]
+    // DİKKAT: İçine "Create" rotasını ekledik
+    [HttpPost("Create")]
     public async Task<IActionResult> Create(CreateBeneficiaryCommand request, CancellationToken cancellationToken)
     {
         var response = await _mediator.Send(request, cancellationToken);
         return Ok(new { Message = response });
     }
-    [HttpGet]
+
+    // DİKKAT: İçine "GetAll" rotasını ekledik
+    [HttpGet("GetAll")]
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
         var response = await _mediator.Send(new OnlineBankAppServer.Application.Features.Beneficiaries.Queries.GetAllBeneficiaries.GetAllBeneficiariesQuery(), cancellationToken);

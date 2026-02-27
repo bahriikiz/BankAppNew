@@ -13,44 +13,74 @@
           <form (ngSubmit)="onSubmit()">
             
             <div class="mb-4">
-  <label for="senderAccount" class="form-label fw-bold text-muted small uppercase">GÖNDEREN HESAP</label>
-  <select id="senderAccount" class="form-select form-select-lg rounded-3 border-2" [(ngModel)]="senderAccountId" name="sender">
-    @for (acc of myAccounts(); track acc.id) {
-      <option [value]="acc.id">
-        {{ acc.accountName }} - {{ acc.balance | number:'1.2-2' }} {{ acc.currencyType }}
-      </option>
-    }
-  </select>
-</div>
+              <label for="senderAccount" class="form-label fw-bold text-muted small uppercase">GÖNDEREN HESAP</label>
+              <select id="senderAccount" class="form-select form-select-lg rounded-3 border-2" [(ngModel)]="senderAccountId" name="sender">
+                @for (acc of myAccounts(); track acc.id) {
+                  <option [value]="acc.id">
+                    {{ acc.accountName }} - {{ acc.balance | number:'1.2-2' }} {{ acc.currencyType }}
+                  </option>
+                }
+              </select>
+            </div>
 
-<div class="mb-4">
-  <label for="receiverIban" class="form-label fw-bold text-muted small uppercase">ALICI IBAN</label>
-  <div class="input-group input-group-lg">
-    <span class="input-group-text bg-light border-2 border-end-0 text-muted">TR</span>
-    <input type="text" id="receiverIban" class="form-control border-2 border-start-0 ps-0 rounded-end-3" 
-           placeholder="0000 0000 0000 0000 0000 00"
-           [(ngModel)]="TargetIban" name="iban">
-  </div>
-</div>
+            @if (beneficiaries().length > 0) {
+              <div class="mb-4 p-3 rounded-3" style="background-color: #f8f9fa; border: 1px dashed #ced4da;">
+                <label for="savedBeneficiary" class="form-label fw-bold text-muted small uppercase">
+                  <i class="bi bi-star-fill text-warning me-1"></i> KAYITLI ALICILAR (HIZLI SEÇİM)
+                </label>
+                <select id="savedBeneficiary" class="form-select rounded-3 border-2" 
+                        [(ngModel)]="selectedBeneficiaryIban" name="savedBeneficiary" (change)="onBeneficiarySelect()">
+                  <option value="">-- Kayıtlı Bir Alıcı Seçin --</option>
+                  @for (ben of beneficiaries(); track ben.id) {
+                    <option [value]="ben.iban">
+                      {{ ben.name }} ({{ ben.iban | slice:0:4 }} **** **** **** {{ ben.iban | slice:-4 }})
+                    </option>
+                  }
+                </select>
+              </div>
+            }
 
-<div class="mb-4">
+            <div class="mb-4">
+              <label for="receiverIban" class="form-label fw-bold text-muted small uppercase">ALICI IBAN</label>
+              <div class="input-group input-group-lg mb-2">
+                <span class="input-group-text bg-light border-2 border-end-0 text-muted">TR</span>
+                <input type="text" id="receiverIban" class="form-control border-2 border-start-0 ps-0 rounded-end-3" 
+                       placeholder="0000 0000 0000 0000 0000 00"
+                       [(ngModel)]="TargetIban" name="iban">
+              </div>
+
+              <div class="form-check mt-2">
+                <input class="form-check-input" type="checkbox" id="saveBenCheck" [(ngModel)]="saveBeneficiary" name="saveBen">
+                <label class="form-check-label text-muted small fw-semibold" for="saveBenCheck" style="cursor: pointer;">
+                  Bu IBAN'ı "Kayıtlı Alıcılar" listeme ekle
+                </label>
+              </div>
+              
+              @if (saveBeneficiary()) {
+                <div class="mt-3 p-3 bg-light rounded-3 border border-2 border-opacity-50 border-secondary">
+                  <label for="benName" class="form-label fw-bold text-muted small uppercase mb-1">KAYIT ADI</label>
+                  <input type="text" id="benName" class="form-control" placeholder="Örn: Ev Sahibi, Kira, Ahmet vb."
+                         [(ngModel)]="beneficiaryName" name="benName">
+                </div>
+              }
+            </div>
+
+            <div class="mb-4">
               <label for="amount" class="form-label fw-bold text-muted small uppercase">GÖNDERİLECEK TUTAR</label>
               <div class="input-group input-group-lg">
                 <input type="number" id="amount" class="form-control border-2 rounded-start-3" placeholder="0.00"
                        [(ngModel)]="amount" name="amount">
-                
                 <span class="input-group-text bg-white border-2 fw-bold text-dark">
                   {{ getSelectedCurrencySymbol() }}
                 </span>
-                
               </div>
             </div>
 
-<div class="mb-4">
-  <label for="description" class="form-label fw-bold text-muted small uppercase">AÇIKLAMA</label>
-  <textarea id="description" class="form-control border-2 rounded-3" rows="2" 
-            placeholder="Örn: Kira Ödemesi" [(ngModel)]="description" name="desc"></textarea>
-</div>
+            <div class="mb-4">
+              <label for="description" class="form-label fw-bold text-muted small uppercase">AÇIKLAMA</label>
+              <textarea id="description" class="form-control border-2 rounded-3" rows="2" 
+                        placeholder="Örn: Kira Ödemesi" [(ngModel)]="description" name="desc"></textarea>
+            </div>
 
             <button type="submit" [disabled]="isSubmitting()" 
                     class="btn btn-lg w-100 text-white fw-bold rounded-pill shadow mt-3"

@@ -20,10 +20,18 @@ export class MoneyTransferComponent implements OnInit {
   description = signal<string>('');
 
   myAccounts = signal<any[]>([]);
+  beneficiaries = signal<any[]>([]); 
+  
+  // YENİ: Kaydetme Seçenekleri Sinyalleri
+  saveBeneficiary = signal<boolean>(false);
+  beneficiaryName = signal<string>('');
+  selectedBeneficiaryIban = signal<string>('');
+
   isSubmitting = signal(false);
 
   ngOnInit() {
     this.loadMyAccounts();
+    this.loadBeneficiaries(); 
   }
 
   loadMyAccounts() {
@@ -37,6 +45,25 @@ export class MoneyTransferComponent implements OnInit {
       },
       error: (err) => console.error(err)
     });
+  }
+
+  // YENİ: Backend'den alıcıları çek
+  loadBeneficiaries() {
+    this.accountService.getBeneficiaries().subscribe({
+      next: (res: any) => {
+        const list = res.data ? res.data : res;
+        this.beneficiaries.set(list || []);
+      },
+      error: (err) => console.error("Kayıtlı alıcılar yüklenemedi:", err)
+    });
+  }
+
+  // YENİ: Dropdown'dan hazır bir alıcı seçildiğinde IBAN inputuna yapıştır
+  onBeneficiarySelect() {
+    if (this.selectedBeneficiaryIban()) {
+      this.TargetIban.set(this.selectedBeneficiaryIban());
+      this.saveBeneficiary.set(false); 
+    }
   }
 
   getSelectedCurrencySymbol(): string {
@@ -61,7 +88,12 @@ export class MoneyTransferComponent implements OnInit {
 
   onSubmit() {
     if (!this.senderAccountId() || !this.TargetIban() || !this.amount()) {
-      alert("Lütfen tüm alanları doldurun!");
+      alert("Lütfen tüm zorunlu alanları doldurun!");
+      return;
+    }
+
+    if (this.saveBeneficiary() && !this.beneficiaryName()) {
+      alert("Kayıtlı alıcılara eklenebilmesi için lütfen bir 'Kayıt Adı' girin!");
       return;
     }
 
@@ -73,7 +105,26 @@ export class MoneyTransferComponent implements OnInit {
     };
 
     this.isSubmitting.set(true);
-    
+
+    // EĞER KULLANICI "KAYDET" DEDİYSE ÖNCE KAYIT İŞLEMİ, SONRA TRANSFER
+    if (this.saveBeneficiary()) {
+      this.accountService.createBeneficiary({
+        name: this.beneficiaryName(),
+        iban: this.TargetIban()
+      }).subscribe({
+        next: () => this.executeTransfer(payload),
+        error: (err) => {
+          console.error("Alıcı kaydedilemedi", err);
+          this.executeTransfer(payload); // Kayıt hata alsa bile transferi durdurmuyoruz
+        }
+      });
+    } else {
+      this.executeTransfer(payload);
+    }
+  }
+
+  // İşlem tekrarını önlemek için transfer kısmını ayrı metoda aldık
+  private executeTransfer(payload: any) {
     this.accountService.transferMoney(payload).subscribe({
       next: () => {
         alert("Transfer işlemi başarıyla gerçekleşti!");

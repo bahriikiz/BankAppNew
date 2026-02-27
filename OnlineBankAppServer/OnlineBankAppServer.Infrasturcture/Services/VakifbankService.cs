@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 using OnlineBankAppServer.Application.Integration.Vakifbank.Dtos;
@@ -19,7 +20,6 @@ public sealed class VakifbankService : IVakifbankService
         _httpClient.BaseAddress = new Uri(baseUrl);
     }
 
-    // Parametre olarak rizaNo eklendi
     private async Task<string> GetAccessTokenAsync(string rizaNo, CancellationToken cancellationToken)
     {
         var tokenUrl = _configuration["VakifBankB2B:TokenUrl"] ?? throw new ArgumentNullException("TokenUrl eksik!");
@@ -47,7 +47,6 @@ public sealed class VakifbankService : IVakifbankService
         return tokenResponse?.AccessToken ?? throw new Exception("Vakıfbank Token boş döndü!");
     }
 
-    // Metodun imzası interface ile uyumlu 
     public async Task<VakifbankAccountListResponseDto?> GetAccountsAsync(string rizaNo, CancellationToken cancellationToken = default)
     {
         string accessToken = await GetAccessTokenAsync(rizaNo, cancellationToken);
@@ -66,8 +65,41 @@ public sealed class VakifbankService : IVakifbankService
             throw new Exception($"Vakıfbank Hesap Listesi API Hatası: {response.StatusCode} - Detay: {errorContent}");
         }
 
-        var result = await response.Content.ReadFromJsonAsync<VakifbankAccountListResponseDto>(cancellationToken: cancellationToken);
-        return result;
+        return await response.Content.ReadFromJsonAsync<VakifbankAccountListResponseDto>(cancellationToken: cancellationToken);
+    }
+
+    // --- YENİ: HESAP HAREKETLERİNİ ÇEKEN METOT ---
+    public async Task<VakifbankAccountTransactionsResponseDto?> GetAccountTransactionsAsync(string rizaNo, string accountNumber, DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
+    {
+        string accessToken = await GetAccessTokenAsync(rizaNo, cancellationToken);
+
+        var transactionsUrl = _configuration["VakifBankB2B:TransactionsUrl"] ?? "https://inbound.apigatewaytest.vakifbank.com.tr:8443/accountTransactions";
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, transactionsUrl);
+        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var requestModel = new
+        {
+            AccountNumber = accountNumber,
+            StartDate = startDate.ToString("yyyy-MM-ddTHH:mm:ss+03:00"),
+            EndDate = endDate.ToString("yyyy-MM-ddTHH:mm:ss+03:00")
+        };
+
+        requestMessage.Content = new StringContent(JsonSerializer.Serialize(requestModel), System.Text.Encoding.UTF8, "application/json");
+
+        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
+        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            // Eğer hareket yoksa boş liste dön, hata fırlatma
+            if (responseContent.Contains("ACBH000202"))
+                return new VakifbankAccountTransactionsResponseDto { Data = new VakifbankTransactionsDataDto { AccountTransactions = new List<VakifbankTransactionItemDto>() } };
+
+            throw new Exception($"Vakıfbank Hesap Hareketleri Hatası: {response.StatusCode} - {responseContent}");
+        }
+
+        return JsonSerializer.Deserialize<VakifbankAccountTransactionsResponseDto>(responseContent);
     }
 }
 
