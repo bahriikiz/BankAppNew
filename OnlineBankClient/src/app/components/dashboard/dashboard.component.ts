@@ -71,4 +71,4 @@ export class DashboardComponent implements OnInit {
       }
     });
   }
-} // Fazlalık süslü parantez kaldırıldı
+} 

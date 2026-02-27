@@ -44,9 +44,29 @@ export class AccountService {
     if (!this.authService.isAuthenticated()) return of(null);
     return this.http.get(`${this.apiUrl}/${accountId}`, { headers: this.getHeaders() });
   }
+
+  // TARİH FİLTRELİ HESAP HAREKETLERİNİ GETİRİR (get-activities)
+  getAccountActivities(payload: { accountId: number, startDate?: string, endDate?: string }): Observable<any[]> {
+    if (!this.authService.isAuthenticated()) return of([]);
+    const baseUrl = 'https://localhost:7241/api';
+    return this.http.post<any[]>(`${baseUrl}/Transactions/get-activities`, payload, { headers: this.getHeaders() });
+  }
+
   // Para Transferi Metodu
   transferMoney(payload: any): Observable<any> {
     const baseUrl = 'https://localhost:7241/api';
-  return this.http.post(`${baseUrl}/Transactions/transfer`, payload, { headers: this.getHeaders() });
-}
+    return this.http.post(`${baseUrl}/Transactions/transfer`, payload, { headers: this.getHeaders() });
+  }
+
+  // KAYITLI ALICILARI GETİR
+  getBeneficiaries(): Observable<any> {
+    const baseUrl = 'https://localhost:7241/api';
+    return this.http.get(`${baseUrl}/Beneficiaries/GetAll`, { headers: this.getHeaders() });
+  }
+
+  // YENİ ALICI KAYDET
+  createBeneficiary(payload: { name: string, iban: string }): Observable<any> {
+    const baseUrl = 'https://localhost:7241/api';
+    return this.http.post(`${baseUrl}/Beneficiaries/Create`, payload, { headers: this.getHeaders() });
+  }
 }
