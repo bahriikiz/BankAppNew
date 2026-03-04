@@ -11,11 +11,11 @@
       <button class="btn rounded-pill px-4 shadow-sm border-0 d-flex align-items-center" 
         style="background-color: #fdb912; color: #7a0022; font-weight: 800;"
         routerLink="/transfer">
-  <i class="bi bi-send-fill me-2"></i> Para Gönder
-</button>
+        <i class="bi bi-send-fill me-2"></i> Para Gönder
+      </button>
 
       <button class="btn btn-outline-dark rounded-pill px-4 shadow-sm" 
-              (click)="addOtherBankAccount()" 
+              (click)="toggleModal()" 
               [disabled]="isSyncing()">
         @if (isSyncing()) { <span class="spinner-border spinner-border-sm me-2"></span> }
         <i class="bi bi-bank me-1"></i> Farklı Banka Ekle
@@ -81,9 +81,7 @@
             </div>
           </div>
         </div>
-      }
-
-      @if (accounts().length === 0) {
+      } @empty {
         <div class="col-12 text-center py-5 border border-dashed rounded-4 bg-light">
           <i class="bi bi-wallet2 display-3 text-muted opacity-25"></i>
           <h5 class="mt-3 fw-bold">Henüz tanımlı bir hesabınız yok.</h5>
@@ -94,3 +92,32 @@
     
   }
 </div>
+
+@if (isModalOpen()) {
+  <div class="modal-overlay" 
+       (click)="toggleModal()" 
+       (keydown.enter)="toggleModal()">
+       
+    <dialog open class="custom-modal shadow-lg rounded-4 border-0 m-0" 
+            (click)="$event.stopPropagation()" 
+            (keydown.enter)="$event.stopPropagation()">
+         
+      <div class="modal-header border-bottom-0 pb-0 d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold mb-0"><i class="bi bi-shield-check text-success me-2"></i>Açık Bankacılık</h5>
+        <button type="button" class="btn-close shadow-none" aria-label="Kapat" (click)="toggleModal()"></button>
+      </div>
+      
+      <div class="modal-body py-4">
+        <p class="text-muted small mb-3">Diğer bankadaki (Örn: Vakıfbank) hesaplarınızı buraya entegre etmek için oluşturduğunuz Rıza Numarasını girin.</p>
+        <label for="rizaNo" class="form-label fw-medium text-dark small">Rıza Numarası</label>
+        <input id="rizaNo" type="text" class="form-control form-control-lg bg-light fs-5 font-monospace" placeholder="Örn: d49*****-****-****-****-********08e" [(ngModel)]="rizaNoInput" (keyup.enter)="submitRizaNo()">
+      </div>
+      
+      <div class="modal-footer border-top-0 pt-0 d-flex gap-2">
+        <button class="btn btn-light rounded-pill px-4 fw-medium m-0" (click)="toggleModal()">İptal</button>
+        <button class="btn btn-primary rounded-pill px-4 fw-bold m-0" (click)="submitRizaNo()" [disabled]="!rizaNoInput()">Bağla</button>
+      </div>
+      
+    </dialog>
+  </div>
+}

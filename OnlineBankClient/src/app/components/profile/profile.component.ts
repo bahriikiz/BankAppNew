@@ -77,4 +77,32 @@ export class ProfileComponent implements OnInit {
     this.authService.logout();
     this.router.navigateByUrl('/login');
   }
+
+  // YENİ: Şifre Değiştirme Modu Kontrolleri
+  public isPasswordEditMode = signal(false);
+  public passwordData = { currentPassword: '', newPassword: '', confirmPassword: '' };
+
+  togglePasswordMode(): void {
+    this.isPasswordEditMode.set(!this.isPasswordEditMode());
+    // İptal edilirse formun içini temizle
+    this.passwordData = { currentPassword: '', newPassword: '', confirmPassword: '' };
+  }
+
+  savePassword(): void {
+    if (this.passwordData.newPassword !== this.passwordData.confirmPassword) {
+      alert("Hata: Yeni şifreler birbiriyle uyuşmuyor!");
+      return;
+    }
+
+    this.authService.changePassword(this.passwordData).subscribe({
+      next: (res) => {
+        alert("Harika! Şifreniz başarıyla güncellendi. Güvenliğiniz için çıkış yapılıyor...");
+        this.logout(); // Şifre değiştiği için sistemi sıfırlayıp Login'e atıyoruz!
+      },
+      error: (err) => {
+        console.error("Şifre güncelleme hatası", err);
+        alert(err.error?.message || "Şifre değiştirilemedi. Mevcut şifrenizi doğru girdiğinizden emin olun.");
+      }
+    });
+  }
 }

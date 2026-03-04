@@ -53,4 +53,11 @@ export class AuthService {
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
     return this.http.put(`${this.apiUrl}/update-profile`, data, { headers });
   }
+
+  // ŞİFRE DEĞİŞTİR
+  changePassword(data: any): Observable<any> {
+    const token = this.getToken() || '';
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+    return this.http.put(`${this.apiUrl}/change-password`, data, { headers });
+  }
 }

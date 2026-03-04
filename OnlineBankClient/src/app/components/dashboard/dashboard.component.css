@@ -26,3 +26,38 @@
 .font-monospace {
     letter-spacing: 1px;
 }
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px); /* Arka planı çok şık bir şekilde buzlandırır */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1050;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.custom-modal {
+  background: white;
+  width: 90%;
+  max-width: 450px;
+  padding: 1.5rem;
+  position: relative !important; 
+  margin: auto !important; /* Modalın her zaman ortalanmasını sağlar */
+  animation: slideDown 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Yaylanarak gelme efekti */
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
