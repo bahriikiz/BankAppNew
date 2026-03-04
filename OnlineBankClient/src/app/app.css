@@ -1,30 +1,38 @@
-
-/* Marquee (Kayan Yazı) Altyapısı */
+/* 3'LÜ KAYAN YAZI */
 .marquee-container {
   flex: 1;
   overflow: hidden;
-  white-space: nowrap;
   display: flex;
   align-items: center;
 }
 
-.animate-marquee {
-  display: inline-block;
-  white-space: nowrap;
-  animation: marquee 30s linear infinite; /* Hızını buradan (30s) ayarlayabilirsin */
+/* Tüm setleri taşıyan ana ray (vagon) */
+.marquee-track {
+  display: flex;
+  width: max-content;
+  /* Hızı kendine göre 20s, 30s, 40s yapabilirsin */
+  animation: scrollMarquee 30s linear infinite;
 }
 
-/* Mouse ile üzerine gelince durması için */
-.animate-marquee:hover {
+/* Mouse üzerine gelince ray dursun */
+.marquee-container:hover .marquee-track {
   animation-play-state: paused;
 }
 
-@keyframes marquee {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); } /* İki döngü kullandığımız için %50 pürüzsüz dönüş sağlar */
+/* İçerik blokları yan yana esnemeden dizilsin */
+.marquee-content {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: space-around;
+  min-width: 100vw; /* Ekranın boş kalmamasını garantiye alır */
 }
 
-/* Sağdaki güncelleme kutusunun altta kalmaması için */
+/* KUSURSUZ DÖNGÜ:*/
+@keyframes scrollMarquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-40%); }
+}
+
 .last-update-box {
   z-index: 10;
   position: relative;

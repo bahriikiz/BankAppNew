@@ -14,5 +14,6 @@ public sealed record AccountTransactionDto(
     DateTime Date,
     string DateString,
     string Type,
-    string Counterparty
+    string Counterparty,
+    string? TransactionReference = null
 );
