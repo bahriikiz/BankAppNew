@@ -5,6 +5,8 @@ using OnlineBankAppServer.Application.Features.Auth.Commands.CreateUser;
 using OnlineBankAppServer.Application.Features.Auth.Commands.DeleteUser;
 using OnlineBankAppServer.Application.Features.Auth.Commands.Login;
 using OnlineBankAppServer.Presentation.Abstraction;
+using OnlineBankAppServer.Application.Features.Auth.Queries.GetMyProfile;
+using OnlineBankAppServer.Application.Features.Auth.Commands.UpdateProfile;
 using System.Security.Claims;
 
 namespace OnlineBankAppServer.Presentation.Controller;
@@ -66,5 +68,21 @@ public sealed class AuthController : ApiController
         }
 
         return Ok(new { Message = "Profiliniz başarıyla silindi." });
+    }
+
+    [Authorize]
+    [HttpGet("my-profile")]
+    public async Task<IActionResult> GetMyProfile(CancellationToken cancellationToken)
+    {
+        var response = await _mediator.Send(new GetMyProfileQuery(), cancellationToken);
+        return Ok(response);
+    }
+
+    [Authorize]
+    [HttpPut("update-profile")]
+    public async Task<IActionResult> UpdateProfile(UpdateProfileCommand request, CancellationToken cancellationToken)
+    {
+        var response = await _mediator.Send(request, cancellationToken);
+        return Ok(new { Message = response });
     }
 }

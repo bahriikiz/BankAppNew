@@ -8,6 +8,9 @@ namespace OnlineBankAppServer.Domain.Entities
         public string LastName { get; set; } = string.Empty;// kullanıcının soyadı
         public string Email { get; set; } = string.Empty; // kullanıcının e-posta adresi
         public string PasswordHash { get; set; } = string.Empty; // kullanıcının şifre hash'i, güvenlik için şifreler düz metin olarak saklanmaz
+        public string IdentityNumber { get; set; } = string.Empty; // kullanıcının kimlik numarası, benzersiz bir tanımlayıcı olarak kullanılabilir
+        public string PhoneNumber { get; set; } = string.Empty; // kullanıcının telefon numarası
+        public string Adress { get; set; } = string.Empty; // kullanıcının adresi
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow; // kullanıcının oluşturulma tarihi, varsayılan olarak UTC zamanında atanır
         public ICollection<Account> Accounts { get; set; } = []; // kullanıcının sahip olduğu hesapların koleksiyonu
         public string Role { get; set; } = "Customer"; // Varsayılan olarak herkes Müşteri

@@ -4,15 +4,41 @@
     <div class="container-fluid d-flex align-items-center h-100">
       
       <div class="marquee-container">
-        <div class="animate-marquee">
-          @for (item of rates; track item.currencyCode) {
-            <span class="me-5 d-inline-flex align-items-center">
-              <strong class="fw-bold text-white">{{item.currencyCode}}</strong> 
-              <i class="bi bi-caret-up-fill ms-1" style="font-size: 0.7rem; color: #FDB912;"></i> 
-              <span class="ms-1 fw-medium fs-6 text-white">{{item.rate | number:'1.2-2'}}</span>
-              <small class="ms-1 fw-light" style="color: #FDB912 !important;">TRY</small>
-            </span>
-          }
+        <div class="marquee-track">
+          
+          <div class="marquee-content">
+            @for (item of rates; track item.currencyCode) {
+              <span class="me-5 d-inline-flex align-items-center pe-3">
+                <strong class="fw-bold text-white">{{item.currencyCode}}</strong> 
+                <i class="bi bi-caret-up-fill ms-1" style="font-size: 0.7rem; color: #FDB912;"></i> 
+                <span class="ms-1 fw-medium fs-6 text-white">{{item.rate | number:'1.2-2'}}</span>
+                <small class="ms-1 fw-light" style="color: #FDB912 !important;">TRY</small>
+              </span>
+            }
+          </div>
+
+          <div class="marquee-content">
+            @for (item of rates; track item.currencyCode) {
+              <span class="me-5 d-inline-flex align-items-center pe-3">
+                <strong class="fw-bold text-white">{{item.currencyCode}}</strong> 
+                <i class="bi bi-caret-up-fill ms-1" style="font-size: 0.7rem; color: #FDB912;"></i> 
+                <span class="ms-1 fw-medium fs-6 text-white">{{item.rate | number:'1.2-2'}}</span>
+                <small class="ms-1 fw-light" style="color: #FDB912 !important;">TRY</small>
+              </span>
+            }
+          </div>
+
+          <div class="marquee-content">
+            @for (item of rates; track item.currencyCode) {
+              <span class="me-5 d-inline-flex align-items-center pe-3">
+                <strong class="fw-bold text-white">{{item.currencyCode}}</strong> 
+                <i class="bi bi-caret-up-fill ms-1" style="font-size: 0.7rem; color: #FDB912;"></i> 
+                <span class="ms-1 fw-medium fs-6 text-white">{{item.rate | number:'1.2-2'}}</span>
+                <small class="ms-1 fw-light" style="color: #FDB912 !important;">TRY</small>
+              </span>
+            }
+          </div>
+
         </div>
       </div>
 

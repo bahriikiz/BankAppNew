@@ -1,5 +1,6 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, signal } from '@angular/core';
+import { Observable } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -39,5 +40,17 @@ export class AuthService {
   logout() {
     this.token = null;
     this.currentUser.set(null);
+  }
+
+  getProfile(): Observable<any> {
+    const token = this.getToken() || '';
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+    return this.http.get(`${this.apiUrl}/my-profile`, { headers });
+  }
+
+  updateProfile(data: { phoneNumber: string, address: string }): Observable<any> {
+    const token = this.getToken() || '';
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+    return this.http.put(`${this.apiUrl}/update-profile`, data, { headers });
   }
 }
