@@ -1,12 +1,13 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OnlineBankAppServer.Application.Features.Accounts.Commands.ChangePassword;
 using OnlineBankAppServer.Application.Features.Auth.Commands.CreateUser;
 using OnlineBankAppServer.Application.Features.Auth.Commands.DeleteUser;
 using OnlineBankAppServer.Application.Features.Auth.Commands.Login;
-using OnlineBankAppServer.Presentation.Abstraction;
-using OnlineBankAppServer.Application.Features.Auth.Queries.GetMyProfile;
 using OnlineBankAppServer.Application.Features.Auth.Commands.UpdateProfile;
+using OnlineBankAppServer.Application.Features.Auth.Queries.GetMyProfile;
+using OnlineBankAppServer.Presentation.Abstraction;
 using System.Security.Claims;
 
 namespace OnlineBankAppServer.Presentation.Controller;
@@ -84,5 +85,20 @@ public sealed class AuthController : ApiController
     {
         var response = await _mediator.Send(request, cancellationToken);
         return Ok(new { Message = response });
+    }
+
+    [Authorize]
+    [HttpPut("change-password")]
+    public async Task<IActionResult> ChangePassword(ChangePasswordCommand request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _mediator.Send(request, cancellationToken);
+            return Ok(new { Message = response });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
     }
 }

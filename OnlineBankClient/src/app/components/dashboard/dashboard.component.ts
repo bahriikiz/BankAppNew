@@ -1,6 +1,7 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms'; 
 import { AccountService } from '../../services/account.service';
 import { AuthService } from '../../services/auth.service';
 import { Account } from '../../models/account.model';
@@ -8,21 +9,24 @@ import { Account } from '../../models/account.model';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, FormsModule], 
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
 export class DashboardComponent implements OnInit {
   public accounts = signal<Account[]>([]);
   public isLoading = signal(true);
-  public isSyncing = signal(false); // Vakıfbank butonu için yükleniyor durumu
+  public isSyncing = signal(false);
+
+  // Modal'ı kontrol edecek sinyaller
+  public isModalOpen = signal(false);
+  public rizaNoInput = signal('');
 
   private readonly accountService = inject(AccountService);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
 
   ngOnInit() {
-    // Güvenlik: Oturum yoksa login'e gönder
     if (!this.authService.isAuthenticated()) {
       this.router.navigate(['/login']);
       return;
@@ -30,7 +34,6 @@ export class DashboardComponent implements OnInit {
     this.fetchAccounts();
   }
 
-  // Backend'den kullanıcının hesaplarını çeker
   fetchAccounts() {
     this.isLoading.set(true);
     this.accountService.getAccounts().subscribe({
@@ -45,23 +48,31 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  addOtherBankAccount() {
-    // Kullanıcıdan Rıza No istiyoruz
-    const rizaNo = globalThis.prompt("Lütfen bankanızdan aldığınız Açık Bankacılık 'Rıza Numarasını' (Rıza No) giriniz:");
+  // Modalı Aç/Kapat fonksiyonu
+  toggleModal() {
+    this.isModalOpen.set(!this.isModalOpen());
+    if (!this.isModalOpen()) {
+      this.rizaNoInput.set(''); // Kapanırken inputu temizle
+    }
+  }
+
+  // Modaldan gelen Rıza Numarasını Gönder
+  submitRizaNo() {
+    const rizaNo = this.rizaNoInput();
     
-    // Eğer kullanıcı iptale basarsa veya boş bırakırsa işlemi durdur
     if (!rizaNo || rizaNo.trim() === '') {
       return; 
     }
 
+    this.isModalOpen.set(false); // İşlem başlarken modalı şak diye kapat
     this.isSyncing.set(true);
     
-    // Rıza No'yu backend'e yolluyoruz
     this.accountService.syncVakifbankAccounts(rizaNo).subscribe({
       next: () => {
         alert("Hesaplarınız başarıyla Açık Bankacılık ağına dahil edildi!");
         this.fetchAccounts(); 
         this.isSyncing.set(false);
+        this.rizaNoInput.set(''); 
       },
       error: (err: any) => {
         console.error("Senkronizasyon hatası:", err);
@@ -71,4 +82,4 @@ export class DashboardComponent implements OnInit {
       }
     });
   }
-} 
+}
