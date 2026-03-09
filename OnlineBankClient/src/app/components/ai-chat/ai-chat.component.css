@@ -1,0 +1,97 @@
+.ai-wrapper {
+  position: fixed;
+  bottom: 40px;
+  right: 40px;
+  z-index: 1050;
+}
+
+.ai-float-btn {
+  width: 75px;  
+  height: 75px; 
+  background: linear-gradient(135deg, #0d6efd, #0dcaf0);
+  color: white;
+  font-size: 34px; 
+  cursor: grab; 
+  transition: box-shadow 0.3s ease;
+}
+
+.ai-float-btn:active {
+  cursor: grabbing;
+  transform: scale(0.95); 
+}
+
+.ai-float-btn:hover {
+  box-shadow: 0 10px 25px rgba(13, 110, 253, 0.5) !important;
+}
+
+/* YENİ: Tooltip (Merhaba) Yönlendirmeleri */
+.ai-tooltip {
+  position: absolute;
+  width: max-content;
+  pointer-events: none; 
+}
+
+/* Buton sağdaysa balon solda */
+.tooltip-left-side {
+  right: 90px;
+  bottom: 8px;
+  animation: bounceLeft 2s infinite ease-in-out;
+}
+.tooltip-left-side .tooltip-arrow {
+  position: absolute; right: -8px; bottom: 22px; width: 0; height: 0; 
+  border-top: 8px solid transparent; border-bottom: 8px solid transparent; border-left: 8px solid #dee2e6;
+}
+.tooltip-left-side .tooltip-arrow::after {
+  content: ''; position: absolute; right: 1px; bottom: -7px;
+  border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 7px solid white;
+}
+
+/* Buton soldaysa balon sağda */
+.tooltip-right-side {
+  left: 90px;
+  bottom: 8px;
+  animation: bounceRight 2s infinite ease-in-out;
+}
+.tooltip-right-side .tooltip-arrow {
+  position: absolute; left: -8px; bottom: 22px; width: 0; height: 0; 
+  border-top: 8px solid transparent; border-bottom: 8px solid transparent; border-left: 8px solid #dee2e6;
+  transform: scaleX(-1); /* Oku tersine çevirir (Pratik Zeka!) */
+}
+.tooltip-right-side .tooltip-arrow::after {
+  content: ''; position: absolute; right: 1px; bottom: -7px;
+  border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 7px solid white;
+}
+
+@keyframes bounceLeft { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-10px); } }
+@keyframes bounceRight { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(10px); } }
+
+/* YENİ: Chat Penceresi Dinamik Kadran Pozisyonları */
+.ai-chat-window {
+  position: absolute;
+  width: 400px; 
+  height: 600px; 
+  background: #ffffff;
+}
+
+/* Yön Sınıfları */
+.window-bottom { bottom: 90px; top: auto; }
+.window-top { top: 90px; bottom: auto; }
+.window-right { right: 0; left: auto; }
+.window-left { left: 0; right: auto; }
+
+/* Animasyon Kökleri (Hangi köşeden açılacak?) */
+.window-bottom.window-right { transform-origin: bottom right; animation: scaleUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.window-bottom.window-left { transform-origin: bottom left; animation: scaleUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.window-top.window-right { transform-origin: top right; animation: scaleUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.window-top.window-left { transform-origin: top left; animation: scaleUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+@keyframes scaleUp { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+.ai-chat-header { background: linear-gradient(135deg, #0d6efd, #0dcaf0); }
+.chat-bubble { max-width: 85%; font-size: 0.95rem; line-height: 1.4; }
+
+.typing-dot { width: 6px; height: 6px; background: #6c757d; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }

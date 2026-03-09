@@ -3,12 +3,13 @@ import { isPlatformBrowser, CommonModule } from '@angular/common';
 import { RouterOutlet, RouterLink } from '@angular/router'; 
 import { ExchangeService } from './services/exchanges.service';
 import { AuthService } from './services/auth.service';
+import { AiChatComponent } from './components/ai-chat/ai-chat.component'; // YENİ: Import edildi
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  // LoginComponent kaldırıldı, RouterLink eklendi!
-  imports: [CommonModule, RouterOutlet, RouterLink], 
+  // YENİ: AiChatComponent buraya eklendi!
+  imports: [CommonModule, RouterOutlet, RouterLink, AiChatComponent], 
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
