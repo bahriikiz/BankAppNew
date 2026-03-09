@@ -1,0 +1,81 @@
+<div class="ai-wrapper" [style.transform]="transformStyle()">
+  
+  @if (showTooltip() && !isOpen()) {
+    <div class="ai-tooltip shadow-sm bg-white border rounded-4 p-3"
+         [ngClass]="isLeftHalf() ? 'tooltip-right-side' : 'tooltip-left-side'">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-robot fs-3 text-primary"></i>
+        <div>
+          <strong class="d-block text-dark mb-0">Merhaba! Ben İKİZ AI 👋</strong>
+          <small class="text-muted" style="font-size: 0.85rem;">Size nasıl yardımcı olabilirim?</small>
+        </div>
+      </div>
+      <div class="tooltip-arrow"></div>
+    </div>
+  }
+
+  @if (isOpen()) {
+    <div class="ai-chat-window shadow-lg rounded-4 overflow-hidden d-flex flex-column" 
+         [ngClass]="{
+            'window-top': isTopHalf(),
+            'window-bottom': !isTopHalf(),
+            'window-left': isLeftHalf(),
+            'window-right': !isLeftHalf()
+         }"
+         (mousedown)="$event.stopPropagation()" 
+         (touchstart)="$event.stopPropagation()">
+      
+      <div class="ai-chat-header d-flex align-items-center p-3 text-white">
+        <div class="bg-white rounded-circle d-flex justify-content-center align-items-center me-2" style="width: 35px; height: 35px;">
+          <i class="bi bi-robot text-primary fs-5"></i>
+        </div>
+        <div>
+          <h6 class="mb-0 fw-bold">İKİZ AI Danışman</h6>
+          <small class="opacity-75" style="font-size: 0.75rem;">Çevrimiçi</small>
+        </div>
+      </div>
+
+      <div class="ai-chat-body flex-grow-1 p-3 overflow-auto" #chatScroll>
+        @for (msg of messages(); track $index) {
+          <div class="mb-3 d-flex" [ngClass]="msg.sender === 'user' ? 'justify-content-end' : 'justify-content-start'">
+            <div class="chat-bubble p-3 rounded-4 shadow-sm"
+                 [ngClass]="msg.sender === 'user' ? 'bg-primary text-white rounded-bottom-0 rounded-start-4' : 'bg-light text-dark border rounded-bottom-0 rounded-end-4'">
+              {{ msg.text }}
+            </div>
+          </div>
+        }
+        
+        @if (isTyping()) {
+          <div class="d-flex justify-content-start mb-3">
+            <div class="chat-bubble p-3 rounded-4 bg-light border text-dark shadow-sm rounded-bottom-0 rounded-end-4 d-flex gap-1 align-items-center">
+              <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="ai-chat-footer p-3 bg-white border-top">
+        <div class="input-group">
+          <input type="text" class="form-control rounded-pill bg-light border-0 ps-3 shadow-none" 
+                 placeholder="Sormak istediğiniz şey nedir?" 
+                 [(ngModel)]="userInput" 
+                 (keyup.enter)="sendMessage()">
+          <button class="btn btn-primary rounded-circle ms-2 d-flex justify-content-center align-items-center" 
+                  style="width: 45px; height: 45px;" 
+                  (click)="sendMessage()" 
+                  [disabled]="!userInput().trim() || isTyping()">
+            <i class="bi bi-send-fill"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <button class="ai-float-btn shadow-lg rounded-circle border-0 d-flex justify-content-center align-items-center" 
+          (mousedown)="onDragStart($event)"
+          (touchstart)="onDragStart($event)"
+          (click)="toggleChat()">
+    <i class="bi" [ngClass]="isOpen() ? 'bi-x-lg' : 'bi-robot'"></i>
+  </button>
+
+</div>
