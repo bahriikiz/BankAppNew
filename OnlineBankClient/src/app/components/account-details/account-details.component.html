@@ -38,7 +38,15 @@
           </div>
         </div>
 
-        <h4 class="fw-bold mb-4">Hesap Hareketleri</h4>
+       <div class="d-flex justify-content-between align-items-center mb-4">
+          <h4 class="fw-bold mb-0">Hesap Hareketleri</h4>
+          <button class="btn rounded-pill fw-bold shadow-sm text-white" 
+                  style="background: linear-gradient(135deg, #0d6efd, #0dcaf0); border: none;"
+                  (click)="analyzeWithAI()" 
+                  [disabled]="transactions().length === 0 || isTransactionsLoading()">
+            <i class="bi bi-robot me-1"></i> İKİZ AI Analizi
+          </button>
+        </div>
 
         <div class="card border-0 shadow-sm rounded-4 mb-4 bg-light">
           <div class="card-body p-4">
@@ -170,4 +178,79 @@
       </div>
     </div>
   </div>
-}
+} @if (showAiModal()) {
+  <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.6); z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        
+        <div class="modal-header text-white border-bottom-0 rounded-top-4" style="background: linear-gradient(135deg, #0d6efd, #0dcaf0);">
+          <h5 class="modal-title fw-bold">
+            <i class="bi bi-robot me-2"></i>İKİZ AI Finansal Analiz Raporu
+          </h5>
+          <button type="button" class="btn-close btn-close-white" (click)="closeAiModal()" aria-label="Kapat"></button>
+        </div>
+        
+        <div class="modal-body p-4 bg-white">
+          @if (isAiAnalyzing()) {
+            <div class="text-center py-5">
+              <output class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></output>
+              <h5 class="mt-4 text-dark fw-bold">İKİZ AI Verilerinizi İnceliyor...</h5>
+              <p class="text-muted">Hesap hareketleriniz analiz ediliyor, finansal özetiniz hazırlanıyor.</p>
+            </div>
+          } @else {
+            
+            <div class="row g-3 mb-4">
+              <div class="col-6">
+                <div class="p-3 bg-success bg-opacity-10 rounded-4 border border-success border-opacity-25 text-center h-100">
+                  <div class="d-inline-flex justify-content-center align-items-center bg-success text-white rounded-circle mb-2" style="width: 40px; height: 40px;">
+                    <i class="bi bi-arrow-down-left fs-5"></i>
+                  </div>
+                  <small class="text-muted fw-bold d-block mb-1">Toplam Gelir</small>
+                  <h5 class="text-success fw-bold mb-0">+{{ incomeTotal() | number:'1.2-2' }} {{ accountDetails().currency }}</h5>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="p-3 bg-danger bg-opacity-10 rounded-4 border border-danger border-opacity-25 text-center h-100">
+                  <div class="d-inline-flex justify-content-center align-items-center bg-danger text-white rounded-circle mb-2" style="width: 40px; height: 40px;">
+                    <i class="bi bi-arrow-up-right fs-5"></i>
+                  </div>
+                  <small class="text-muted fw-bold d-block mb-1">Toplam Gider</small>
+                  <h5 class="text-danger fw-bold mb-0">-{{ expenseTotal() | number:'1.2-2' }} {{ accountDetails().currency }}</h5>
+                </div>
+              </div>
+              
+              <div class="col-12 mt-4">
+                <div class="d-flex justify-content-between mb-2">
+                  <small class="fw-bold text-success">Gelir ({{ incomePercentage() }}%)</small>
+                  <small class="fw-bold text-danger">Gider ({{ expensePercentage() }}%)</small>
+                </div>
+                
+                <div class="progress rounded-pill shadow-sm" style="height: 25px;" aria-hidden="true">
+                  <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" 
+                       [style.width]="incomePercentage() + '%'">
+                  </div>
+                  <div class="progress-bar bg-danger progress-bar-striped progress-bar-animated" 
+                       [style.width]="expensePercentage() + '%'">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="ai-response-content p-4 bg-light rounded-4 border shadow-sm">
+              <h6 class="fw-bold mb-3 text-dark d-flex align-items-center border-bottom pb-2">
+                <i class="bi bi-stars text-primary me-2 fs-5"></i> İKİZ AI Danışman Yorumu
+              </h6>
+              <div class="text-dark" style="font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap;">{{ aiAnalysisResult() }}</div>
+            </div>
+
+          }
+        </div>
+        
+        <div class="modal-footer border-top-0 bg-light rounded-bottom-4">
+          <button type="button" class="btn btn-outline-secondary rounded-pill px-4 fw-bold" (click)="closeAiModal()">Kapat</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+} 
