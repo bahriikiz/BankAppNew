@@ -1,5 +1,6 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using OnlineBankAppServer.Application.Features.Accounts.Commands.ChangePassword;
 using OnlineBankAppServer.Application.Features.Auth.Commands.CreateUser;
@@ -12,12 +13,8 @@ using System.Security.Claims;
 
 namespace OnlineBankAppServer.Presentation.Controller;
 
-public sealed class AuthController : ApiController
+public sealed class AuthController(IMediator mediator) : ApiController(mediator)
 {
-    public AuthController(IMediator mediator) : base(mediator)
-    {
-    }
-
     [HttpPost("register")]
     public async Task<IActionResult> Register(CreateUserCommand request, CancellationToken cancellationToken)
     {
@@ -26,19 +23,35 @@ public sealed class AuthController : ApiController
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login(LoginCommand request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Login([FromBody] LoginCommand request, CancellationToken cancellationToken)
     {
         var response = await _mediator.Send(request, cancellationToken);
 
-        // Eğer Handler tarafında (Application katmanı) LoginResponse nesnesine 
-        if (string.IsNullOrEmpty(response.Token))
+        // güvenli cookie ayarlarıyla token'ı cookie'ye yazıyoruz
+        Response.Cookies.Append("AccessToken", response.Token, new CookieOptions
         {
-            return BadRequest(response);
-        }
+            HttpOnly = true, 
+            Secure = true, 
+            SameSite = SameSiteMode.None,  
+            Expires = DateTimeOffset.UtcNow.AddHours(1) 
+        });
 
-        return Ok(response);
-        // Artık frontend 'res.firstName' ve 'res.lastName' olarak veriye erişebilecek.
+        return Ok(response); // Artık response.Token Angular'da localStorage'a yazılmayacak!
     }
+
+    [HttpGet("logout")]
+    public IActionResult Logout()
+    {
+        // Çıkış yapınca çerezi imha et!
+        Response.Cookies.Delete("AccessToken", new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.None
+        });
+        return Ok(new { Message = "Güvenli çıkış yapıldı." });
+    }
+
 
     [Authorize]
     [HttpDelete("delete-my-profile")]
@@ -98,7 +111,7 @@ public sealed class AuthController : ApiController
         }
         catch (Exception ex)
         {
-            return BadRequest(new { Message = ex.Message });
+            return BadRequest(new { ex.Message });
         }
     }
 }

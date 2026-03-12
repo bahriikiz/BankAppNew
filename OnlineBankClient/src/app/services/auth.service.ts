@@ -1,4 +1,4 @@
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Injectable, signal } from '@angular/core';
 import { Observable } from 'rxjs';
 
@@ -8,56 +8,49 @@ import { Observable } from 'rxjs';
 export class AuthService {
   private readonly apiUrl = 'https://localhost:7241/api/Auth';
   
-  // Güvenlik: Token sadece RAM'de duracak. Sayfa yenilenirse (F5) uçup gidecek!
-  private token: string | null = null;
+  // Artık Token'ı değişkende bile tutmuyoruz, her şey Cookie'de güvenle saklanıyor!
   currentUser = signal<{ name: string, surname: string } | null>(null);
 
   constructor(private readonly http: HttpClient) {}
 
-  login(model: any) {
-    return this.http.post(`${this.apiUrl}/Login`, model);
+  login(model: any): Observable<any> {
+    // API'den dönen response içinde artık token ile ilgilenmiyoruz, çerezler (Cookie) otomatik setleniyor
+    return this.http.post(`${this.apiUrl}/login`, model);
   }
 
-  register(model: any) {
+  register(model: any): Observable<any> {
     return this.http.post(`${this.apiUrl}/register`, model);
   }
 
-  // Giriş başarılı olduğunda bu metot çalışır ve verileri geçici hafızaya alır
-  setSession(token: string, userInfo: { name: string, surname: string }) {
-    this.token = token;
+  // Giriş başarılı olduğunda artık sadece kullanıcı adını ekrana basmak için tutuyoruz
+  setSession(userInfo: { name: string, surname: string }) {
     this.currentUser.set(userInfo);
   }
 
-  // Diğer servislerin (AccountService gibi) token'a ulaşabilmesi için
-  getToken(): string | null {
-    return this.token;
-  }
-
-  isAuthenticated(): boolean {
-    return this.token !== null;
-  }
-
+  // Tarayıcıdaki Cookie'ler Backend tarafında silinecek, biz sadece kendi sinyalimizi temizliyoruz.
   logout() {
-    this.token = null;
     this.currentUser.set(null);
+    return this.http.get(`${this.apiUrl}/logout`); // API'deki çerezi silen endpoint'i çağırıyoruz
   }
+
+  // YENİ: Token var mı yok mu diye API'ye bir "Ping" atıyoruz. 
+  // (Çünkü artık token'ı biz JavaScript ile göremiyoruz, sadece sunucu görebilir)
+  isAuthenticated(): boolean {
+    return this.currentUser() !== null; 
+  }
+
+  // --- DİKKAT: ARTIK HİÇBİR İSTEKTE HEADER'A BEARER TOKEN EKLENMİYOR! ---
+  // Tarayıcı bunu HttpOnly Cookie ile otomatik ve güvenli şekilde (XSS Korumalı) gönderir.
 
   getProfile(): Observable<any> {
-    const token = this.getToken() || '';
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-    return this.http.get(`${this.apiUrl}/my-profile`, { headers });
+    return this.http.get(`${this.apiUrl}/my-profile`);
   }
 
   updateProfile(data: { phoneNumber: string, address: string }): Observable<any> {
-    const token = this.getToken() || '';
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-    return this.http.put(`${this.apiUrl}/update-profile`, data, { headers });
+    return this.http.put(`${this.apiUrl}/update-profile`, data);
   }
 
-  // ŞİFRE DEĞİŞTİR
   changePassword(data: any): Observable<any> {
-    const token = this.getToken() || '';
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-    return this.http.put(`${this.apiUrl}/change-password`, data, { headers });
+    return this.http.put(`${this.apiUrl}/change-password`, data);
   }
 }

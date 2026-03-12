@@ -8,6 +8,7 @@ using OnlineBankAppServer.Application.Services;
 using Microsoft.IdentityModel.Tokens;
 using System.Text.Json.Serialization;
 using OnlineBankAppServer.Infrasturcture;
+using System.Threading.RateLimiting;
 
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
@@ -15,14 +16,15 @@ var builder = WebApplication.CreateBuilder(args);
 
 //   SERVÝSLER
 
-// Angular (Frontend) isteklerine izin vermek için CORS politikasýný ekliyoruz
+// CORS POLÝTÝKASI (Çerezlerin geçiþine izin verildi - GÜVENLÝK!)
 builder.Services.AddCors(opt =>
 {
     opt.AddDefaultPolicy(p =>
     {
         p.AllowAnyHeader()
          .AllowAnyMethod()
-         .AllowAnyOrigin();
+         .SetIsOriginAllowed(origin => true)
+         .AllowCredentials();
     });
 });
 
@@ -32,7 +34,6 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 });
 
 builder.Services.AddApplication();
-
 builder.Services.AddInfrasturcture();
 
 builder.Services.AddControllers()
@@ -44,6 +45,24 @@ builder.Services.AddControllers()
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddEndpointsApiExplorer();
+
+// --- GÜVENLÝK: RATE LIMITING KALKANI ---
+builder.Services.AddRateLimiter(options =>
+{
+    // Yapay Zeka için: IP baþýna dakikada maksimum 5 soru!
+    options.AddPolicy("AiLimit", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 5,
+                QueueLimit = 0,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
 
 builder.Services.AddSwaggerGen(setup =>
 {
@@ -92,10 +111,20 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = "OnlineBankAppUsers",
         IssuerSigningKey = JwtProvider.GetPublicKey()
     };
-    // JWT doðrulamasý baþarýlý ancak kullanýcýnýn gerekli yetkilere sahip olmadýðý durumlarda 403 Forbidden döndür
 
+    // GÜVENLÝK: TOKEN'I ÇEREZDEN (COOKIE) OKU!
     options.Events = new JwtBearerEvents
     {
+        OnMessageReceived = context =>
+        {
+            // Ýstemci token'ý header'da göndermese bile, eðer çerezde varsa al!
+            var token = context.Request.Cookies["AccessToken"];
+            if (!string.IsNullOrEmpty(token))
+            {
+                context.Token = token;
+            }
+            return Task.CompletedTask;
+        },
         OnForbidden = context =>
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
@@ -119,8 +148,8 @@ WebApplication app = builder.Build();
 
 app.UseMiddleware<OnlineBankAppServer.WebApi.Middlewares.ExceptionMiddleware>();
 
-// CORS middleware'ini kullanýma alýyoruz (Routing ve Auth arasýnda olmasý en saðlýklýsýdýr)
 app.UseCors();
+app.UseRateLimiter(); 
 
 if (app.Environment.IsDevelopment())
 {

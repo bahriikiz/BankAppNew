@@ -23,9 +23,7 @@ export class LoginComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
 
-  // SAYFA YÜKLENDİĞİNDE ÇALIŞAN KISIM
   ngOnInit() {
-    // Eğer adres çubuğunda 'register' yazıyorsa, Kayıt Ol modunu aktif et
     if (this.router.url.includes('register')) {
       this.isLoginMode = false;
     } else {
@@ -42,28 +40,18 @@ export class LoginComponent implements OnInit {
   onLogin() {
     this.isLoading = true;
     this.errorMessage = '';
+    
     this.authService.login(this.loginModel).subscribe({
       next: (res: any) => {
-        const token = res.token || res.Token; 
-        if (token) {
-          try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            const fullName = payload.fullName || 'Misafir Kullanıcı';
-            const nameParts = fullName.split(' ');
-            const userInfo = { 
-              name: nameParts[0] || 'M', 
-              surname: nameParts.length > 1 ? nameParts[nameParts.length - 1] : 'K' 
-            };
-            this.authService.setSession(token, userInfo);
-          } catch (e) {
-            console.error("Token çözülemedi", e);
-          }
-          this.isLoading = false;
-          this.router.navigate(['/dashboard']);
-        } else {
-          this.isLoading = false;
-          this.errorMessage = "Sunucudan geçerli bir anahtar alınamadı.";
-        }
+        const userInfo = { 
+          name: res.firstName || 'Değerli', 
+          surname: res.lastName || 'Müşterimiz' 
+        };
+        
+        this.authService.setSession(userInfo);
+        
+        this.isLoading = false;
+        this.router.navigate(['/dashboard']);
       },
       error: (err: any) => {
         this.isLoading = false;
@@ -75,6 +63,7 @@ export class LoginComponent implements OnInit {
   onRegister() {
     this.isLoading = true;
     this.errorMessage = '';
+    
     this.authService.register(this.registerModel).subscribe({
       next: () => {
         this.successMessage = 'Hesabınız başarıyla oluşturuldu. Giriş yapabilirsiniz.';
