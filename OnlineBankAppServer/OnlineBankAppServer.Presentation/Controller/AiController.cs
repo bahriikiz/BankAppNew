@@ -1,5 +1,5 @@
-﻿using MediatR;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.RateLimiting;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using OnlineBankAppServer.Application.Features.AI.Commands.AskAI;
 using OnlineBankAppServer.Presentation.Abstraction;
@@ -7,6 +7,7 @@ using OnlineBankAppServer.Presentation.Abstraction;
 namespace OnlineBankAppServer.Presentation.Controller;
 
 [Route("api/[controller]")]
+[EnableRateLimiting("AiLimit")]
 public sealed class AiController(IMediator mediator) : ApiController(mediator)
 {
     [HttpPost("ask")]
