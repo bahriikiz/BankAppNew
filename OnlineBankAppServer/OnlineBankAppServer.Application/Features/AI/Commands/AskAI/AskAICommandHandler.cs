@@ -13,7 +13,6 @@ internal sealed class AskAICommandHandler(IConfiguration configuration) : IReque
         string? apiKey = configuration["Gemini:ApiKey"];
         if (string.IsNullOrEmpty(apiKey)) throw new Exception("Gemini API Key bulunamadı! Lütfen appsettings.json'u kontrol edin.");
 
-        // Gemini 1.5 Flash (Çok hızlı ve akıllıdır)
         string url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
 
         // 2. Yapay Zekaya Karakter Yükleme (System Prompt)
