@@ -12,10 +12,8 @@ using OnlineBankAppServer.Presentation.Abstraction;
 namespace OnlineBankAppServer.Presentation.Controller;
 
 [Authorize]
-public sealed class AccountsController : ApiController
+public sealed class AccountsController(IMediator mediator) : ApiController(mediator)
 {
-    public AccountsController(IMediator mediator) : base(mediator) { }
-
     [HttpPost("create-account")]
     public async Task<IActionResult> Create(CreateAccountCommand request, CancellationToken cancellationToken)
     {
@@ -99,7 +97,7 @@ public sealed class AccountsController : ApiController
 
         if (!response.IsSuccess)
         {
-            return BadRequest(new { Message = response.Message });
+            return BadRequest(new { response.Message });
         }
 
         return Ok(response);
