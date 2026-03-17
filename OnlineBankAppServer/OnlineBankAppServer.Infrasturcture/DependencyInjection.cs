@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using OnlineBankAppServer.Application.Abstractions;
-using OnlineBankAppServer.Infrastructure.Services;
 using OnlineBankAppServer.Infrasturcture.Services;
 
 namespace OnlineBankAppServer.Infrasturcture;
