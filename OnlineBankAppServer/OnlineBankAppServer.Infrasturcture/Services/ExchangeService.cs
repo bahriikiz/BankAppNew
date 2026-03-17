@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Globalization;
 
-namespace OnlineBankAppServer.Infrastructure.Services;
+namespace OnlineBankAppServer.Infrasturcture.Services;
 
 public sealed class ExchangeService(HttpClient httpClient, IConfiguration configuration) : IExchangeService
 {
@@ -53,7 +53,7 @@ public sealed class ExchangeService(HttpClient httpClient, IConfiguration config
         var requestModel = new VakifBankCalculationRequest
         {
             SourceCurrencyCode = apiFrom,
-            SourceAmount = "1", // Tırnak içinde string
+            SourceAmount = "1", 
             TargetCurrencyCode = apiTo
         };
 
@@ -132,7 +132,7 @@ public sealed class ExchangeService(HttpClient httpClient, IConfiguration config
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
         var tokenResult = JsonSerializer.Deserialize<VakifBankTokenResponse>(content);
 
-        return tokenResult?.access_token ?? throw new Exception("Token boş.");
+        return tokenResult?.Access_token ?? throw new Exception("Token boş.");
     }
 }
 
@@ -151,9 +151,9 @@ public class VakifBankCalculationRequest
 
 public class VakifBankTokenResponse
 {
-    public string? access_token { get; set; }
-    public string? token_type { get; set; }
-    public int expires_in { get; set; }
+    public string? Access_token { get; set; }
+    public string? Token_type { get; set; }
+    public int Expires_in { get; set; }
 }
 
 public class VakifBankCalculatorResponse

@@ -19,6 +19,15 @@ public interface IVakifbankService
 
     // Vakıfbank API'si üzerinden şehir bilgilerini almak için tanımlanan metod
     Task<VakifbankCityResponseDto?> GetCitiesAsync(CancellationToken cancellationToken = default);
+
+    // Belirli bir şehir için ilçe bilgilerini almak için tanımlanan metod
+    Task<VakifbankDistrictResponseDto?> GetDistrictsAsync(string cityCode, CancellationToken cancellationToken = default);
+
+    // Belirli bir ilçe için mahalle bilgilerini almak için tanımlanan metod
+    Task<VakifbankNeighborhoodResponseDto?> GetNeighborhoodsAsync(string districtCode, CancellationToken cancellationToken = default);
+
+    // Belirli bir şehir ve ilçe için şube bilgilerini almak için tanımlanan metod
+    Task<VakifbankBranchResponseDto?> GetBranchesAsync(string cityCode, string bankDistrictCode, CancellationToken cancellationToken = default);
 }
 
 // DTO'lar:

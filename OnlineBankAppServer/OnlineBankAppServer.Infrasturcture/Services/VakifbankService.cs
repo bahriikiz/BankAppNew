@@ -49,7 +49,7 @@ public sealed class VakifbankService : IVakifbankService
         return tokenResponse?.AccessToken ?? throw new Exception("Vakıfbank Token boş döndü!");
     }
 
-    // DÜZELTİLDİ: Public servisler için çalışan bağımsız token motoru.
+    // Public servisler için çalışan bağımsız token motoru.
     private async Task<string> GetPublicAccessTokenAsync(CancellationToken cancellationToken)
     {
         string tokenUrl = _configuration["VakifBankApi:TokenUrl"]
@@ -208,7 +208,6 @@ public sealed class VakifbankService : IVakifbankService
     // --- ŞEHİR LİSTESİ ÇEKME ---
     public async Task<VakifbankCityResponseDto?> GetCitiesAsync(CancellationToken cancellationToken = default)
     {
-        // DÜZELTİLDİ: Şehir Listesi artık "GetAccessTokenAsync" (B2B) yerine "GetPublicAccessTokenAsync" çağırıyor!
         string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
 
         var apiUrl = _configuration["VakifBankApi:CitiesUrl"]
@@ -228,6 +227,114 @@ public sealed class VakifbankService : IVakifbankService
         }
 
         return JsonSerializer.Deserialize<VakifbankCityResponseDto>(responseContent);
+    }
+
+    // --- İLÇE LİSTESİ ÇEKME ---
+    public async Task<VakifbankDistrictResponseDto?> GetDistrictsAsync(string cityCode, CancellationToken cancellationToken = default)
+    {
+        string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
+
+        var apiUrl = _configuration["VakifBankApi:DistrictsUrl"]
+                     ?? throw new InvalidOperationException("VakifBankApi:DistrictsUrl ayarı eksik!");
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
+        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var requestModel = new { CityCode = cityCode };
+        requestMessage.Content = new StringContent(JsonSerializer.Serialize(requestModel), System.Text.Encoding.UTF8, "application/json");
+
+        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
+        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new Exception($"Vakıfbank İlçe Listesi Hatası: {response.StatusCode} - {responseContent}");
+        }
+
+        return JsonSerializer.Deserialize<VakifbankDistrictResponseDto>(responseContent);
+    }
+
+    // --- MAHALLE LİSTESİ ÇEKME ---
+    public async Task<VakifbankNeighborhoodResponseDto?> GetNeighborhoodsAsync(string districtCode, CancellationToken cancellationToken = default)
+    {
+        string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
+
+        var apiUrl = _configuration["VakifBankApi:NeighborhoodsUrl"]
+                     ?? throw new InvalidOperationException("VakifBankApi:NeighborhoodsUrl ayarı eksik!");
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
+        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var requestModel = new { DistrictCode = districtCode };
+        requestMessage.Content = new StringContent(JsonSerializer.Serialize(requestModel), System.Text.Encoding.UTF8, "application/json");
+
+        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
+        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new Exception($"Vakıfbank Mahalle Listesi Hatası: {response.StatusCode} - {responseContent}");
+        }
+
+        return JsonSerializer.Deserialize<VakifbankNeighborhoodResponseDto>(responseContent);
+    }
+
+    // --- ŞUBE LİSTESİ ÇEKME (MANUEL FİLTRELEMELİ VE HATA KONTROLLÜ) ---
+    public async Task<VakifbankBranchResponseDto?> GetBranchesAsync(string cityCode, string bankDistrictCode, CancellationToken cancellationToken = default)
+    {
+        string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
+
+        var apiUrl = _configuration["VakifBankApi:BranchesUrl"]
+                     ?? throw new InvalidOperationException("VakifBankApi:BranchesUrl ayarı eksik!");
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
+        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        requestMessage.Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
+
+        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
+        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new Exception($"Vakıfbank Şube Listesi Hatası: {response.StatusCode} - {responseContent}");
+        }
+
+        var result = JsonSerializer.Deserialize<VakifbankBranchResponseDto>(responseContent);
+
+        // API'den liste tamamen null dönerse patlamaması için ilk kalkan
+        if (result?.Data?.Branch == null)
+        {
+            throw new Exception("Vakıfbank API'si şu anda şube verisi döndürmüyor.");
+        }
+
+        // Gelen şubeleri C# ile LINQ üzerinden ışık hızında filtreliyoruz
+        var filteredBranches = result.Data.Branch.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(cityCode))
+        {
+            filteredBranches = filteredBranches.Where(x => x.CityCode?.Trim() == cityCode.Trim());
+        }
+
+        if (!string.IsNullOrEmpty(bankDistrictCode))
+        {
+            filteredBranches = filteredBranches.Where(x => x.DistrictCode?.Trim() == bankDistrictCode.Trim());
+        }
+
+        var finalBranchList = filteredBranches.ToList();
+
+        // Eğer sonuç 0 ise, frontend'e o güzel 400 hatasını fırlatıyoruz!
+        if (finalBranchList.Count == 0)
+        {
+            throw new Exception("Belirtilen kriterlere (İl/İlçe) uygun herhangi bir şube bulunamadı. Lütfen girdiğiniz bilgileri kontrol edin.");
+        }
+
+        result = new VakifbankBranchResponseDto(
+            result.Header,
+            new VakifbankBranchDataDto([.. finalBranchList])
+        );
+
+        return result;
     }
 }
 
