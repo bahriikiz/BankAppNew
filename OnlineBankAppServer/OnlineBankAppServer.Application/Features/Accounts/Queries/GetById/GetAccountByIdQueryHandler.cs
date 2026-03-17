@@ -1,7 +1,7 @@
 ﻿using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OnlineBankAppServer.Application.Abstractions;
 using OnlineBankAppServer.Application.DTOs;
-using OnlineBankAppServer.Application.Integration.Vakifbank;
 using OnlineBankAppServer.Persistance;
 using System.Globalization;
 

@@ -1,7 +1,7 @@
 ﻿using System.Text.Json.Serialization;
 using OnlineBankAppServer.Application.Integration.Vakifbank.Dtos;
 
-namespace OnlineBankAppServer.Application.Integration.Vakifbank;
+namespace OnlineBankAppServer.Application.Abstractions;
 
 public interface IVakifbankService
 {
@@ -16,6 +16,9 @@ public interface IVakifbankService
 
     // Belirli bir işlem için makbuz bilgilerini almak için tanımlanan metod
     Task<VakifbankReceiptResponseDto?> GetReceiptAsync(string rizaNo, string accountNumber, string transactionId, string receiptFormat, CancellationToken cancellationToken = default);
+
+    // Vakıfbank API'si üzerinden şehir bilgilerini almak için tanımlanan metod
+    Task<VakifbankCityResponseDto?> GetCitiesAsync(CancellationToken cancellationToken = default);
 }
 
 // DTO'lar:
