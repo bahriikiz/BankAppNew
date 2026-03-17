@@ -336,6 +336,73 @@ public sealed class VakifbankService : IVakifbankService
 
         return result;
     }
+
+    // --- BANKA LİSTESİ ÇEKME ---
+    public async Task<VakifbankBankListResponseDto?> GetBankListAsync(CancellationToken cancellationToken = default)
+    {
+        string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
+
+        var apiUrl = _configuration["VakifBankApi:BankListUrl"]
+                     ?? throw new InvalidOperationException("VakifBankApi:BankListUrl ayarı eksik!");
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
+        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        requestMessage.Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
+
+        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
+        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new Exception($"Vakıfbank Banka Listesi Hatası: {response.StatusCode} - {responseContent}");
+        }
+
+        return JsonSerializer.Deserialize<VakifbankBankListResponseDto>(responseContent);
+    }
+
+    // --- EN YAKIN ŞUBE VE ATM ÇEKME (GPS RADARI) ---
+    public async Task<VakifbankNearestResponseDto?> GetNearestBranchAndAtmAsync(string latitude, string longitude, int distanceLimit, CancellationToken cancellationToken = default)
+    {
+        string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
+
+        var apiUrl = _configuration["VakifBankApi:NearestUrl"]
+                     ?? throw new InvalidOperationException("VakifBankApi:NearestUrl ayarı eksik!");
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
+        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        // Nokta ve virgül ayrımında sorun yaşamamak için koordinatları güvenli hale getiriyoruz
+        var safeLatitude = latitude.Replace(".", ",");
+        var safeLongitude = longitude.Replace(".", ",");
+
+        var requestModel = new
+        {
+            Latitude = safeLatitude,
+            Longitude = safeLongitude,
+            DistanceLimit = distanceLimit
+        };
+
+        requestMessage.Content = new StringContent(JsonSerializer.Serialize(requestModel), System.Text.Encoding.UTF8, "application/json");
+
+        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
+        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new Exception($"Vakıfbank En Yakın Şube/ATM Hatası: {response.StatusCode} - {responseContent}");
+        }
+
+        var result = JsonSerializer.Deserialize<VakifbankNearestResponseDto>(responseContent);
+
+        // Kalkan: Eğer dönen liste null veya 0 elemanlı ise Frontend'e anında 400 hatası bas!
+        if (result?.Data?.BranchandATM == null || result.Data.BranchandATM.Count == 0)
+        {
+            throw new Exception("Belirtilen konuma ve mesafe limitine uygun Şube veya ATM bulunamadı. Lütfen koordinatları veya limiti kontrol edin.");
+        }
+
+        return result;
+    }
 }
 
 // --- DTO MODELLERİ ---

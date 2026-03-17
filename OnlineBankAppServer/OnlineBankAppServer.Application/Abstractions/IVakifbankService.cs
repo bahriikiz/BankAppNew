@@ -28,6 +28,12 @@ public interface IVakifbankService
 
     // Belirli bir şehir ve ilçe için şube bilgilerini almak için tanımlanan metod
     Task<VakifbankBranchResponseDto?> GetBranchesAsync(string cityCode, string bankDistrictCode, CancellationToken cancellationToken = default);
+
+    // Vakıfbank API'si üzerinden banka bilgilerini almak için tanımlanan metod
+    Task<VakifbankBankListResponseDto?> GetBankListAsync(CancellationToken cancellationToken = default);
+
+    // Belirli bir konum için en yakın şube ve ATM bilgilerini almak için tanımlanan metod
+    Task<VakifbankNearestResponseDto?> GetNearestBranchAndAtmAsync(string latitude, string longitude, int distanceLimit, CancellationToken cancellationToken = default);
 }
 
 // DTO'lar:
