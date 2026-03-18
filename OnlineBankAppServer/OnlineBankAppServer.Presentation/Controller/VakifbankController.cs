@@ -77,7 +77,7 @@ public sealed class VakifbankController(IMediator mediator) : ApiController(medi
         return Ok(response);
     }
 
-    // GET: api/vakifbank/deposit
+    // GET: api/vakifbank/deposit/products
     [HttpGet("deposit/products")]
     public async Task<IActionResult> GetDepositProducts(CancellationToken cancellationToken)
     {

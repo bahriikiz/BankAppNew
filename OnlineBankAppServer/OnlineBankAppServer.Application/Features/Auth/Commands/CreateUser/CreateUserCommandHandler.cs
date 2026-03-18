@@ -2,8 +2,8 @@
 using Microsoft.EntityFrameworkCore;
 using OnlineBankAppServer.Domain.Entities;
 using OnlineBankAppServer.Persistance;
-namespace OnlineBankAppServer.Application.Features.Auth.Commands.CreateUser;
 
+namespace OnlineBankAppServer.Application.Features.Auth.Commands.CreateUser;
 
 internal sealed class CreateUserCommandHandler(AppDbContext context) : IRequestHandler<CreateUserCommand, string>
 {
@@ -17,18 +17,26 @@ internal sealed class CreateUserCommandHandler(AppDbContext context) : IRequestH
         }
 
         string hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
+
         User user = new()
         {
             FirstName = request.FirstName,
             LastName = request.LastName,
             Email = request.Email,
             PasswordHash = hashedPassword,
+            IdentityNumber = request.IdentityNumber,
+            PhoneNumber = request.PhoneNumber,
+            City = request.City,
+            District = request.District,
+            Neighborhood = request.Neighborhood,
+            Adress = request.Address,
             CreatedAt = DateTime.UtcNow,
             Accounts = [],
         };
+
         await context.Users.AddAsync(user, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
-        return "Kullanıcı başarıyla oluşturuldu.";
 
-        }
+        return "Kullanıcı başarıyla oluşturuldu.";
+    }
 }

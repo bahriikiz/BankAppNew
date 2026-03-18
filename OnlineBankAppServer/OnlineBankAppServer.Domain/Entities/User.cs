@@ -10,9 +10,12 @@ namespace OnlineBankAppServer.Domain.Entities
         public string PasswordHash { get; set; } = string.Empty; // kullanıcının şifre hash'i, güvenlik için şifreler düz metin olarak saklanmaz
         public string IdentityNumber { get; set; } = string.Empty; // kullanıcının kimlik numarası, benzersiz bir tanımlayıcı olarak kullanılabilir
         public string PhoneNumber { get; set; } = string.Empty; // kullanıcının telefon numarası
-        public string Adress { get; set; } = string.Empty; // kullanıcının adresi
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow; // kullanıcının oluşturulma tarihi, varsayılan olarak UTC zamanında atanır
         public ICollection<Account> Accounts { get; set; } = []; // kullanıcının sahip olduğu hesapların koleksiyonu
         public string Role { get; set; } = "Customer"; // Varsayılan olarak herkes Müşteri
+        public string City { get; set; } = string.Empty; // İl (Örn: İSTANBUL)
+        public string District { get; set; } = string.Empty; // İlçe (Örn: ŞİŞLİ)
+        public string Neighborhood { get; set; } = string.Empty; // Mahalle (Örn: FULYA MAH.)
+        public string Adress { get; set; } = string.Empty; // Sadece Sokak, Bina, Kapı No detayı için
     }
 }

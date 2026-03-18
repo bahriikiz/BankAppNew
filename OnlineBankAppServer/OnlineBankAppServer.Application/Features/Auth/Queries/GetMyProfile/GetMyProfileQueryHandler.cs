@@ -12,27 +12,27 @@ internal sealed class GetMyProfileQueryHandler(
 {
     public async Task<GetMyProfileResponse> Handle(GetMyProfileQuery request, CancellationToken cancellationToken)
     {
-        var userIdClaim = httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier) 
-                          ?? httpContextAccessor.HttpContext?.User.FindFirst("sub");
-        if (userIdClaim is null) throw new Exception("Kimlik dogrulanamadı.");
-
+        var userIdClaim = (httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)
+                          ?? httpContextAccessor.HttpContext?.User.FindFirst("sub")) ?? throw new Exception("Kimlik dogrulanamadı.");
         int userId = int.Parse(userIdClaim.Value);
 
-        var user =await context.Users
+        var user = await context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
-        if (user is null) throw new Exception("Kullanıcı bulunamadı.");
-
-        return new GetMyProfileResponse(
+        return user is null
+            ? throw new Exception("Kullanıcı bulunamadı.")
+            : new GetMyProfileResponse(
             user.FirstName,
             user.LastName,
             user.Email,
             user.IdentityNumber,
             user.PhoneNumber,
+            user.City,
+            user.District,
+            user.Neighborhood,
             user.Adress,
             user.CreatedAt
-            );
+        );
     }
-    
 }

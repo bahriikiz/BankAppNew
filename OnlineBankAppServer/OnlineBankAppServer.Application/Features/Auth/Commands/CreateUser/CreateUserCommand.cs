@@ -5,7 +5,15 @@ namespace OnlineBankAppServer.Application.Features.Auth.Commands.CreateUser
         string FirstName,
         string LastName,
         string Email,
-        string Password) : IRequest<string>;
-
-
+        string Password,
+        string IdentityNumber,
+        string PhoneNumber,
+        string City,
+        string District,
+        string Neighborhood,
+        string Adress
+        ) : IRequest<string>
+    {
+        public string Address { get; internal set; }
+    }
 }
