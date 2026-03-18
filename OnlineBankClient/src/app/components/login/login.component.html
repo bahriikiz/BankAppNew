@@ -73,8 +73,8 @@
                     <div class="form-floating">
                       <select class="form-select rounded-3" id="citySelect" name="cityCode" [(ngModel)]="registerModel.cityCode" (change)="onCityChange()" required>
                         <option value="" disabled>İl Seçin</option>
-                        @for (city of cities; track city.CityCode) {
-                          <option [value]="city.CityCode">{{ city.CityName }}</option>
+                        @for (city of cities; track $index) {
+                          <option [value]="city.CityCode || city.cityCode">{{ city.CityName || city.cityName }}</option>
                         }
                       </select>
                       <label for="citySelect">İl</label>
@@ -84,8 +84,8 @@
                     <div class="form-floating">
                       <select class="form-select rounded-3" id="districtSelect" name="districtCode" [(ngModel)]="registerModel.districtCode" (change)="onDistrictChange()" [disabled]="!registerModel.cityCode" required>
                         <option value="" disabled>İlçe Seçin</option>
-                        @for (district of districts; track district.DistrictCode) {
-                          <option [value]="district.DistrictCode">{{ district.DistrictName }}</option>
+                        @for (district of districts; track $index) {
+                          <option [value]="district.DistrictCode || district.districtCode">{{ district.DistrictName || district.districtName }}</option>
                         }
                       </select>
                       <label for="districtSelect">İlçe</label>
@@ -95,8 +95,8 @@
                     <div class="form-floating">
                       <select class="form-select rounded-3" id="neighborhoodSelect" name="neighborhoodCode" [(ngModel)]="registerModel.neighborhoodCode" (change)="onNeighborhoodChange()" [disabled]="!registerModel.districtCode" required>
                         <option value="" disabled>Mahalle Seçin</option>
-                        @for (neighborhood of neighborhoods; track neighborhood.NeighborhoodCode) {
-                          <option [value]="neighborhood.NeighborhoodCode">{{ neighborhood.NeighborhoodName }}</option>
+                        @for (neighborhood of neighborhoods; track $index) {
+                          <option [value]="neighborhood.NeighborhoodCode || neighborhood.neighborhoodCode">{{ neighborhood.NeighborhoodName || neighborhood.neighborhoodName }}</option>
                         }
                       </select>
                       <label for="neighborhoodSelect">Mahalle</label>

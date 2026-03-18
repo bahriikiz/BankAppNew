@@ -17,7 +17,7 @@ export class VakifbankService {
     return this.http.get(`${this.baseUrl}/cities/${cityCode}/districts`);
   }
 
-  getNeighborhoods(cityCode: string, districtCode: string): Observable<any> {
-    return this.http.get(`${this.baseUrl}/cities/${cityCode}/districts/${districtCode}/neighborhoods`);
+ getNeighborhoods(districtCode: string): Observable<any> {
+    return this.http.get(`${this.baseUrl}/districts/${districtCode}/neighborhoods`);
   }
 }

@@ -2,7 +2,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.Caching.Memory; 
 using Microsoft.Extensions.Configuration;
 using OnlineBankAppServer.Application.Abstractions;
 using OnlineBankAppServer.Application.Integration.Vakifbank.Dtos;
@@ -13,13 +12,11 @@ public sealed class VakifbankService : IVakifbankService
 {
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
-    private readonly IMemoryCache _memoryCache; 
 
-    public VakifbankService(HttpClient httpClient, IConfiguration configuration, IMemoryCache memoryCache)
+    public VakifbankService(HttpClient httpClient, IConfiguration configuration)
     {
         _httpClient = httpClient;
         _configuration = configuration;
-        _memoryCache = memoryCache;
         string baseUrl = _configuration["VakifBankB2B:BaseUrl"] ?? throw new InvalidOperationException("BaseUrl eksik!");
         _httpClient.BaseAddress = new Uri(baseUrl);
     }
@@ -52,18 +49,9 @@ public sealed class VakifbankService : IVakifbankService
         return tokenResponse?.AccessToken ?? throw new Exception("Vakıfbank Token boş döndü!");
     }
 
-    // Public servisler için çalışan bağımsız token motoru 
+    // Public servisler için çalışan bağımsız token motoru. Her istekte taze token alır.
     private async Task<string> GetPublicAccessTokenAsync(CancellationToken cancellationToken)
     {
-        const string cacheKey = "VakifbankPublicToken";
-
-        // 1. Önce hafızaya bak, token var mı ve süresi geçerli mi?
-        if (_memoryCache.TryGetValue(cacheKey, out string? cachedToken) && !string.IsNullOrEmpty(cachedToken))
-        {
-            return cachedToken; // Varsa hiç bankaya gitme, direkt hafızadakini ver!
-        }
-
-        // 2. Eğer hafızada yoksa (veya süresi dolmuşsa) mecburen bankadan yeni token al
         string tokenUrl = _configuration["VakifBankApi:TokenUrl"]
                        ?? throw new InvalidOperationException("VakifBankApi:TokenUrl ayarı eksik!");
 
@@ -89,15 +77,7 @@ public sealed class VakifbankService : IVakifbankService
         }
 
         var tokenResponse = await response.Content.ReadFromJsonAsync<VakifbankTokenResponseDto>(cancellationToken: cancellationToken);
-        var accessToken = tokenResponse?.AccessToken ?? throw new Exception("Vakıfbank Public Token boş döndü!");
-
-        // 3. Alınan yeni token'ı 55 dakika (3300 saniye) boyunca hafızaya hapset!
-        var cacheOptions = new MemoryCacheEntryOptions()
-            .SetAbsoluteExpiration(TimeSpan.FromMinutes(55));
-
-        _memoryCache.Set(cacheKey, accessToken, cacheOptions);
-
-        return accessToken;
+        return tokenResponse?.AccessToken ?? throw new Exception("Vakıfbank Public Token boş döndü!");
     }
 
     // --- HESAP LİSTESİ ÇEKME ---
@@ -246,7 +226,7 @@ public sealed class VakifbankService : IVakifbankService
             throw new Exception($"Vakıfbank Şehir Listesi Hatası: {response.StatusCode} - {responseContent}");
         }
 
-        return JsonSerializer.Deserialize<VakifbankCityResponseDto>(responseContent);
+        return JsonSerializer.Deserialize<VakifbankCityResponseDto>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
     }
 
     // --- İLÇE LİSTESİ ÇEKME ---
@@ -261,7 +241,9 @@ public sealed class VakifbankService : IVakifbankService
         requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
         var requestModel = new { CityCode = cityCode };
-        requestMessage.Content = new StringContent(JsonSerializer.Serialize(requestModel), System.Text.Encoding.UTF8, "application/json");
+        // KRİTİK: NamingPolicy = null ile CityCode'un küçük harfe dönmesini engelliyoruz
+        var json = JsonSerializer.Serialize(requestModel, new JsonSerializerOptions { PropertyNamingPolicy = null });
+        requestMessage.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
         var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
         var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -271,7 +253,7 @@ public sealed class VakifbankService : IVakifbankService
             throw new Exception($"Vakıfbank İlçe Listesi Hatası: {response.StatusCode} - {responseContent}");
         }
 
-        return JsonSerializer.Deserialize<VakifbankDistrictResponseDto>(responseContent);
+        return JsonSerializer.Deserialize<VakifbankDistrictResponseDto>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
     }
 
     // --- MAHALLE LİSTESİ ÇEKME ---
@@ -279,14 +261,17 @@ public sealed class VakifbankService : IVakifbankService
     {
         string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
 
-        var apiUrl = _configuration["VakifBankApi:NeighborhoodsUrl"]
-                     ?? throw new InvalidOperationException("VakifBankApi:NeighborhoodsUrl ayarı eksik!");
-
+        var apiUrl = _configuration["VakifBankApi:NeighborhoodsUrl"]!;
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
         requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
-        var requestModel = new { DistrictCode = districtCode };
-        requestMessage.Content = new StringContent(JsonSerializer.Serialize(requestModel), System.Text.Encoding.UTF8, "application/json");
+        var requestModel = new { DistrictCode = districtCode?.Trim() };
+        string jsonBody = JsonSerializer.Serialize(requestModel, new JsonSerializerOptions { PropertyNamingPolicy = null });
+
+        var content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
+        content.Headers.ContentType!.CharSet = "";
+
+        requestMessage.Content = content;
 
         var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
         var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -296,10 +281,10 @@ public sealed class VakifbankService : IVakifbankService
             throw new Exception($"Vakıfbank Mahalle Listesi Hatası: {response.StatusCode} - {responseContent}");
         }
 
-        return JsonSerializer.Deserialize<VakifbankNeighborhoodResponseDto>(responseContent);
+        return JsonSerializer.Deserialize<VakifbankNeighborhoodResponseDto>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
     }
 
-    // --- ŞUBE LİSTESİ ÇEKME (MANUEL FİLTRELEMELİ VE HATA KONTROLLÜ) ---
+    // --- ŞUBE LİSTESİ ÇEKME ---
     public async Task<VakifbankBranchResponseDto?> GetBranchesAsync(string cityCode, string bankDistrictCode, CancellationToken cancellationToken = default)
     {
         string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
@@ -320,15 +305,13 @@ public sealed class VakifbankService : IVakifbankService
             throw new Exception($"Vakıfbank Şube Listesi Hatası: {response.StatusCode} - {responseContent}");
         }
 
-        var result = JsonSerializer.Deserialize<VakifbankBranchResponseDto>(responseContent);
+        var result = JsonSerializer.Deserialize<VakifbankBranchResponseDto>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-        // API'den liste tamamen null dönerse patlamaması için ilk kalkan
         if (result?.Data?.Branch == null)
         {
             throw new Exception("Vakıfbank API'si şu anda şube verisi döndürmüyor.");
         }
 
-        // Gelen şubeleri C# ile LINQ üzerinden ışık hızında filtreliyoruz
         var filteredBranches = result.Data.Branch.AsEnumerable();
 
         if (!string.IsNullOrEmpty(cityCode))
@@ -343,10 +326,9 @@ public sealed class VakifbankService : IVakifbankService
 
         var finalBranchList = filteredBranches.ToList();
 
-        // Eğer sonuç 0 ise, frontend'e o güzel 400 hatasını fırlatıyoruz!
         if (finalBranchList.Count == 0)
         {
-            throw new Exception("Belirtilen kriterlere (İl/İlçe) uygun herhangi bir şube bulunamadı. Lütfen girdiğiniz bilgileri kontrol edin.");
+            throw new Exception("Belirtilen kriterlere uygun herhangi bir şube bulunamadı.");
         }
 
         result = new VakifbankBranchResponseDto(
@@ -378,10 +360,10 @@ public sealed class VakifbankService : IVakifbankService
             throw new Exception($"Vakıfbank Banka Listesi Hatası: {response.StatusCode} - {responseContent}");
         }
 
-        return JsonSerializer.Deserialize<VakifbankBankListResponseDto>(responseContent);
+        return JsonSerializer.Deserialize<VakifbankBankListResponseDto>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
     }
 
-    // --- EN YAKIN ŞUBE VE ATM ÇEKME (GPS RADARI) ---
+    // --- EN YAKIN ŞUBE VE ATM ÇEKME ---
     public async Task<VakifbankNearestResponseDto?> GetNearestBranchAndAtmAsync(string latitude, string longitude, int distanceLimit, CancellationToken cancellationToken = default)
     {
         string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
@@ -392,7 +374,6 @@ public sealed class VakifbankService : IVakifbankService
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
         requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
-        // Nokta ve virgül ayrımında sorun yaşamamak için koordinatları güvenli hale getiriyoruz
         var safeLatitude = latitude.Replace(".", ",");
         var safeLongitude = longitude.Replace(".", ",");
 
@@ -403,7 +384,8 @@ public sealed class VakifbankService : IVakifbankService
             DistanceLimit = distanceLimit
         };
 
-        requestMessage.Content = new StringContent(JsonSerializer.Serialize(requestModel), System.Text.Encoding.UTF8, "application/json");
+        var json = JsonSerializer.Serialize(requestModel, new JsonSerializerOptions { PropertyNamingPolicy = null });
+        requestMessage.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
         var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
         var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -413,18 +395,17 @@ public sealed class VakifbankService : IVakifbankService
             throw new Exception($"Vakıfbank En Yakın Şube/ATM Hatası: {response.StatusCode} - {responseContent}");
         }
 
-        var result = JsonSerializer.Deserialize<VakifbankNearestResponseDto>(responseContent);
+        var result = JsonSerializer.Deserialize<VakifbankNearestResponseDto>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-        // Kalkan: Eğer dönen liste null veya 0 elemanlı ise Frontend'e anında 400 hatası bas!
         if (result?.Data?.BranchandATM == null || result.Data.BranchandATM.Count == 0)
         {
-            throw new Exception("Belirtilen konuma ve mesafe limitine uygun Şube veya ATM bulunamadı. Lütfen koordinatları veya limiti kontrol edin.");
+            throw new Exception("Belirtilen kriterlere uygun Şube veya ATM bulunamadı.");
         }
 
         return result;
     }
 
-    // --- MEVDUAT HESAPLAMA ÇEKME ---
+    // --- MEVDUAT HESAPLAMA ---
     public async Task<VakifbankDepositResponseDto?> CalculateDepositAsync(decimal amount, string currencyCode, long depositType, long campaignId, int termDays, CancellationToken cancellationToken = default)
     {
         string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
@@ -435,7 +416,6 @@ public sealed class VakifbankService : IVakifbankService
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
         requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
-        // İstek hazırlama: Banka API'si belirli parametreler bekliyor, biz de onları eksiksiz ve doğru formatta gönderiyoruz
         var requestModel = new
         {
             Amount = amount,
@@ -445,7 +425,8 @@ public sealed class VakifbankService : IVakifbankService
             TermDays = termDays
         };
 
-        requestMessage.Content = new StringContent(JsonSerializer.Serialize(requestModel), System.Text.Encoding.UTF8, "application/json");
+        var json = JsonSerializer.Serialize(requestModel, new JsonSerializerOptions { PropertyNamingPolicy = null });
+        requestMessage.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
         var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
         var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -455,18 +436,17 @@ public sealed class VakifbankService : IVakifbankService
             throw new Exception($"Vakıfbank Mevduat Hesaplama Hatası: {response.StatusCode} - {responseContent}");
         }
 
-        var result = JsonSerializer.Deserialize<VakifbankDepositResponseDto>(responseContent);
+        var result = JsonSerializer.Deserialize<VakifbankDepositResponseDto>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-        // Hata Kalkanı: Eğer banka API'si boş data dönerse uyar!
         if (result?.Data?.Deposit == null)
         {
-            throw new Exception("Seçtiğiniz kriterlere uygun faiz oranı veya mevduat bilgisi bulunamadı.");
+            throw new Exception("Seçtiğiniz kriterlere uygun mevduat bilgisi bulunamadı.");
         }
 
         return result;
     }
 
-    // --- MEVDUAT ÜRÜN LİSTESİ ÇEKME ---
+    // --- MEVDUAT ÜRÜN LİSTESİ ---
     public async Task<VakifbankDepositProductResponseDto?> GetDepositProductsAsync(CancellationToken cancellationToken = default)
     {
         string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
@@ -477,7 +457,6 @@ public sealed class VakifbankService : IVakifbankService
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
         requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
-        // Boş JSON gönderiyoruz
         requestMessage.Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
 
         var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
@@ -488,11 +467,10 @@ public sealed class VakifbankService : IVakifbankService
             throw new Exception($"Vakıfbank Mevduat Ürün Listesi Hatası: {response.StatusCode} - {responseContent}");
         }
 
-        return JsonSerializer.Deserialize<VakifbankDepositProductResponseDto>(responseContent);
+        return JsonSerializer.Deserialize<VakifbankDepositProductResponseDto>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
     }
 }
 
-// --- DTO MODELLERİ ---
 public class VakifbankTokenResponseDto
 {
     [JsonPropertyName("access_token")]

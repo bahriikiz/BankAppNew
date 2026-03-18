@@ -20,7 +20,6 @@ export class LoginComponent implements OnInit {
 
   public loginModel = { email: '', password: '' };
   
-  // YENİ: Kayıt modelini tüm detaylarıyla genişlettik
   public registerModel = { 
     firstName: '', lastName: '', email: '', password: '',
     identityNumber: '', phoneNumber: '',
@@ -30,7 +29,6 @@ export class LoginComponent implements OnInit {
     address: '' 
   };
 
-  // Şelale dropdownlar için listelerimiz
   public cities: any[] = [];
   public districts: any[] = [];
   public neighborhoods: any[] = [];
@@ -41,7 +39,7 @@ export class LoginComponent implements OnInit {
 
   ngOnInit() {
     this.isLoginMode = !this.router.url.includes('register');
-    this.loadCities(); // Ekran açılır açılmaz İlleri getir!
+    this.loadCities();
   }
 
   toggleMode() {
@@ -50,28 +48,35 @@ export class LoginComponent implements OnInit {
     this.successMessage = '';
   }
 
-  // Dropdown motoru
   loadCities() {
     this.vakifbankService.getCities().subscribe({
-      next: (res: any) => this.cities = res.data?.city || []
+      next: (res: any) => {
+        // API'den gelen veri yapısına göre hem 'city' hem de 'City' kontrolü yapıyoruz
+        const responseData = res.data?.Data || res.data?.data || res.Data || res.data || res;
+        this.cities = responseData?.City || responseData?.city || [];
+      }
     });
   }
 
   onCityChange() {
-    // İl değişirse altındaki her şeyi temizle!
     this.registerModel.districtCode = '';
     this.registerModel.neighborhoodCode = '';
     this.districts = [];
     this.neighborhoods = [];
 
-   const selected = this.cities.find(c => c.cityCode === this.registerModel.cityCode);
-    this.registerModel.cityName = selected ? selected.cityName : '';
+    // Hem cityCode hem CityCode ihtimalini kontrol et, == ile string/number farkını ez
+    const selected = this.cities.find(c => (c.cityCode || c.CityCode) == this.registerModel.cityCode);
+    this.registerModel.cityName = selected ? (selected.cityName || selected.CityName) : '';
 
     if (this.registerModel.cityCode) {
-      this.vakifbankService.getDistricts(this.registerModel.cityCode).subscribe({
+
+      const formattedCityCode = String(this.registerModel.cityCode).padStart(2, '0');
+     this.vakifbankService.getDistricts(formattedCityCode).subscribe({
         next: (res: any) => {
-          this.districts = res.Data?.District || res.data?.district || [];
-        }
+          const responseData = res.data?.Data || res.data?.data || res.Data || res.data || res;
+          this.districts = responseData?.District || responseData?.district || [];
+        },
+        error: (err: any) => console.error("İlçeler çekilirken hata:", err)
       });
     }
   }
@@ -80,19 +85,27 @@ export class LoginComponent implements OnInit {
     this.registerModel.neighborhoodCode = '';
     this.neighborhoods = [];
 
-    const selected = this.districts.find(d => d.DistrictCode === this.registerModel.districtCode);
-    this.registerModel.districtName = selected ? selected.DistrictName : '';
+    // Hem districtCode hem DistrictCode ihtimalini kontrol et, == ile string/number farkını ez
+    const selected = this.districts.find(d => (d.districtCode || d.DistrictCode) == this.registerModel.districtCode);
+    this.registerModel.districtName = selected ? (selected.districtName || selected.DistrictName) : '';
 
-    if (this.registerModel.cityCode && this.registerModel.districtCode) {
-      this.vakifbankService.getNeighborhoods(this.registerModel.cityCode, this.registerModel.districtCode).subscribe({
-        next: (res: any) => this.neighborhoods = res.data?.neighborhood || []
+    // Mahalle servisi sadece districtCode bekliyor (Servisi önceki adımda böyle güncellemiştik)
+    if (this.registerModel.districtCode) {
+      this.vakifbankService.getNeighborhoods(this.registerModel.districtCode).subscribe({
+        next: (res: any) => {
+          // İç içe DTO (Data.Neighborhood) katmanlarını çözüyoruz
+          const responseData = res.data?.Data || res.data?.data || res.Data || res.data || res;
+          this.neighborhoods = responseData?.Neighborhood || responseData?.neighborhood || [];
+        },
+        error: (err: any) => console.error("Mahalleler çekilirken hata:", err)
       });
     }
   }
 
   onNeighborhoodChange() {
-    const selected = this.neighborhoods.find(n => n.NeighborhoodCode === this.registerModel.neighborhoodCode);
-    this.registerModel.neighborhoodName = selected ? selected.NeighborhoodName : '';
+    // Hem neighborhoodCode hem NeighborhoodCode ihtimalini kontrol et, == ile string/number farkını ez
+    const selected = this.neighborhoods.find(n => (n.neighborhoodCode || n.NeighborhoodCode) == this.registerModel.neighborhoodCode);
+    this.registerModel.neighborhoodName = selected ? (selected.neighborhoodName || selected.NeighborhoodName) : '';
   }
 
   onLogin() {
@@ -117,7 +130,6 @@ export class LoginComponent implements OnInit {
     this.isLoading = true;
     this.errorMessage = '';
     
-    // Backend'in beklediği DTO formatına (İsimler gidecek şekilde) çeviriyoruz
     const payload = {
       firstName: this.registerModel.firstName,
       lastName: this.registerModel.lastName,
