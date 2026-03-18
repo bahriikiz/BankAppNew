@@ -34,6 +34,12 @@ public interface IVakifbankService
 
     // Belirli bir konum için en yakın şube ve ATM bilgilerini almak için tanımlanan metod
     Task<VakifbankNearestResponseDto?> GetNearestBranchAndAtmAsync(string latitude, string longitude, int distanceLimit, CancellationToken cancellationToken = default);
+
+    // Belirli bir tutar, para birimi, vade ve kampanya bilgilerine göre mevduat hesaplaması yapmak için tanımlanan metod
+    Task<VakifbankDepositResponseDto?> CalculateDepositAsync(decimal amount, string currencyCode, long depositType, long campaignId, int termDays, CancellationToken cancellationToken = default);
+
+    // Mevduat Ürün Listesi 
+    Task<VakifbankDepositProductResponseDto?> GetDepositProductsAsync(CancellationToken cancellationToken = default);
 }
 
 // DTO'lar:

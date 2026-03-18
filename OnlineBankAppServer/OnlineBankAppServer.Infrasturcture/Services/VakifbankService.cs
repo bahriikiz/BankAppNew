@@ -403,6 +403,73 @@ public sealed class VakifbankService : IVakifbankService
 
         return result;
     }
+
+    // --- MEVDUAT HESAPLAMA ÇEKME ---
+    public async Task<VakifbankDepositResponseDto?> CalculateDepositAsync(decimal amount, string currencyCode, long depositType, long campaignId, int termDays, CancellationToken cancellationToken = default)
+    {
+        string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
+
+        var apiUrl = _configuration["VakifBankApi:DepositCalculatorUrl"]
+                     ?? throw new InvalidOperationException("VakifBankApi:DepositCalculatorUrl ayarı eksik!");
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
+        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        // İstek hazırlama: Banka API'si belirli parametreler bekliyor, biz de onları eksiksiz ve doğru formatta gönderiyoruz
+        var requestModel = new
+        {
+            Amount = amount,
+            CurrencyCode = currencyCode,
+            DepositType = depositType,
+            CampaignId = campaignId,
+            TermDays = termDays
+        };
+
+        requestMessage.Content = new StringContent(JsonSerializer.Serialize(requestModel), System.Text.Encoding.UTF8, "application/json");
+
+        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
+        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new Exception($"Vakıfbank Mevduat Hesaplama Hatası: {response.StatusCode} - {responseContent}");
+        }
+
+        var result = JsonSerializer.Deserialize<VakifbankDepositResponseDto>(responseContent);
+
+        // Hata Kalkanı: Eğer banka API'si boş data dönerse uyar!
+        if (result?.Data?.Deposit == null)
+        {
+            throw new Exception("Seçtiğiniz kriterlere uygun faiz oranı veya mevduat bilgisi bulunamadı.");
+        }
+
+        return result;
+    }
+
+    // --- MEVDUAT ÜRÜN LİSTESİ ÇEKME ---
+    public async Task<VakifbankDepositProductResponseDto?> GetDepositProductsAsync(CancellationToken cancellationToken = default)
+    {
+        string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
+
+        var apiUrl = _configuration["VakifBankApi:DepositProductsUrl"]
+                     ?? throw new InvalidOperationException("VakifBankApi:DepositProductsUrl ayarı eksik!");
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
+        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        // Boş JSON gönderiyoruz
+        requestMessage.Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
+
+        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
+        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new Exception($"Vakıfbank Mevduat Ürün Listesi Hatası: {response.StatusCode} - {responseContent}");
+        }
+
+        return JsonSerializer.Deserialize<VakifbankDepositProductResponseDto>(responseContent);
+    }
 }
 
 // --- DTO MODELLERİ ---
