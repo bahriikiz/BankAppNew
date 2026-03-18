@@ -8,6 +8,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrasturcture(this IServiceCollection services)
     {
+        services.AddMemoryCache();
+
         services.AddHttpClient<IExchangeService, ExchangeService>();
 
         services.AddHttpClient<IVakifbankService, VakifbankService>();

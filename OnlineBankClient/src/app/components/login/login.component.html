@@ -1,7 +1,7 @@
-<div class="auth-wrapper d-flex align-items-center justify-content-center">
+<div class="auth-wrapper d-flex align-items-center justify-content-center py-5">
   <div class="container">
     <div class="row justify-content-center">
-      <div class="col-md-8 col-lg-5">
+      <div class="col-md-10 col-lg-7">
         <div class="card auth-card border-0 shadow-lg rounded-4 overflow-hidden">
           <div class="card-body p-5">
             
@@ -36,28 +36,95 @@
 
             @if (!isLoginMode) {
               <form (ngSubmit)="onRegister()">
+                <h6 class="text-muted fw-bold mb-3">Kişisel Bilgiler</h6>
                 <div class="row">
-                  <div class="col-6 mb-3">
+                  <div class="col-sm-6 mb-3">
                     <div class="form-floating">
                       <input type="text" class="form-control rounded-3" id="regFirstName" name="firstName" [(ngModel)]="registerModel.firstName" placeholder="Ad" required>
                       <label for="regFirstName">Adınız</label>
                     </div>
                   </div>
-                  <div class="col-6 mb-3">
+                  <div class="col-sm-6 mb-3">
                     <div class="form-floating">
                       <input type="text" class="form-control rounded-3" id="regLastName" name="lastName" [(ngModel)]="registerModel.lastName" placeholder="Soyad" required>
                       <label for="regLastName">Soyadınız</label>
                     </div>
                   </div>
                 </div>
-                <div class="form-floating mb-3">
-                  <input type="email" class="form-control rounded-3" id="regEmail" name="email" [(ngModel)]="registerModel.email" placeholder="E-posta Adresi" required>
-                  <label for="regEmail">E-posta Adresi</label>
+
+                <div class="row">
+                  <div class="col-sm-6 mb-3">
+                    <div class="form-floating">
+                      <input type="text" class="form-control rounded-3" id="regId" name="identityNumber" [(ngModel)]="registerModel.identityNumber" placeholder="TC Kimlik No" maxlength="11" required>
+                      <label for="regId">TC Kimlik No</label>
+                    </div>
+                  </div>
+                  <div class="col-sm-6 mb-3">
+                    <div class="form-floating">
+                      <input type="tel" class="form-control rounded-3" id="regPhone" name="phoneNumber" [(ngModel)]="registerModel.phoneNumber" placeholder="5551234567" required>
+                      <label for="regPhone">Cep Telefonu</label>
+                    </div>
+                  </div>
                 </div>
+
+                <h6 class="text-muted fw-bold mb-3 mt-2">Adres Bilgileri (Vakıfbank API)</h6>
+                <div class="row">
+                  <div class="col-md-4 mb-3">
+                    <div class="form-floating">
+                      <select class="form-select rounded-3" id="citySelect" name="cityCode" [(ngModel)]="registerModel.cityCode" (change)="onCityChange()" required>
+                        <option value="" disabled>İl Seçin</option>
+                        @for (city of cities; track city.CityCode) {
+                          <option [value]="city.CityCode">{{ city.CityName }}</option>
+                        }
+                      </select>
+                      <label for="citySelect">İl</label>
+                    </div>
+                  </div>
+                  <div class="col-md-4 mb-3">
+                    <div class="form-floating">
+                      <select class="form-select rounded-3" id="districtSelect" name="districtCode" [(ngModel)]="registerModel.districtCode" (change)="onDistrictChange()" [disabled]="!registerModel.cityCode" required>
+                        <option value="" disabled>İlçe Seçin</option>
+                        @for (district of districts; track district.DistrictCode) {
+                          <option [value]="district.DistrictCode">{{ district.DistrictName }}</option>
+                        }
+                      </select>
+                      <label for="districtSelect">İlçe</label>
+                    </div>
+                  </div>
+                  <div class="col-md-4 mb-3">
+                    <div class="form-floating">
+                      <select class="form-select rounded-3" id="neighborhoodSelect" name="neighborhoodCode" [(ngModel)]="registerModel.neighborhoodCode" (change)="onNeighborhoodChange()" [disabled]="!registerModel.districtCode" required>
+                        <option value="" disabled>Mahalle Seçin</option>
+                        @for (neighborhood of neighborhoods; track neighborhood.NeighborhoodCode) {
+                          <option [value]="neighborhood.NeighborhoodCode">{{ neighborhood.NeighborhoodName }}</option>
+                        }
+                      </select>
+                      <label for="neighborhoodSelect">Mahalle</label>
+                    </div>
+                  </div>
+                </div>
+
                 <div class="form-floating mb-4">
-                  <input type="password" class="form-control rounded-3" id="regPass" name="password" [(ngModel)]="registerModel.password" placeholder="Şifre" required>
-                  <label for="regPass">Şifre Belirleyin</label>
+                  <input type="text" class="form-control rounded-3" id="regAddress" name="address" [(ngModel)]="registerModel.address" placeholder="Sokak, Bina, Kapı No" required>
+                  <label for="regAddress">Açık Adres (Sokak/Bina/Daire)</label>
                 </div>
+
+                <h6 class="text-muted fw-bold mb-3 mt-2">Hesap Güvenliği</h6>
+                <div class="row">
+                  <div class="col-sm-6 mb-3">
+                    <div class="form-floating">
+                      <input type="email" class="form-control rounded-3" id="regEmail" name="email" [(ngModel)]="registerModel.email" placeholder="E-posta" required>
+                      <label for="regEmail">E-posta Adresi</label>
+                    </div>
+                  </div>
+                  <div class="col-sm-6 mb-4">
+                    <div class="form-floating">
+                      <input type="password" class="form-control rounded-3" id="regPass" name="password" [(ngModel)]="registerModel.password" placeholder="Şifre" required>
+                      <label for="regPass">Şifre Belirleyin</label>
+                    </div>
+                  </div>
+                </div>
+
                 <button type="submit" class="btn text-white w-100 py-3 rounded-pill fw-bold shadow-sm" style="background-color: #A90432;" [disabled]="isLoading">
                   @if (isLoading) { <span class="spinner-border spinner-border-sm me-2"></span> }
                   Hesap Oluştur

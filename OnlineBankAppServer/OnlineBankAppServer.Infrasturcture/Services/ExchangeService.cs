@@ -151,11 +151,15 @@ public class VakifBankCalculationRequest
 
 public class VakifBankTokenResponse
 {
+    [JsonPropertyName("access_token")] 
     public string? Access_token { get; set; }
+
+    [JsonPropertyName("token_type")] 
     public string? Token_type { get; set; }
+
+    [JsonPropertyName("expires_in")] 
     public int Expires_in { get; set; }
 }
-
 public class VakifBankCalculatorResponse
 {
     public VakifBankData? Data { get; set; }

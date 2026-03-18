@@ -2,6 +2,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Caching.Memory; 
 using Microsoft.Extensions.Configuration;
 using OnlineBankAppServer.Application.Abstractions;
 using OnlineBankAppServer.Application.Integration.Vakifbank.Dtos;
@@ -12,11 +13,13 @@ public sealed class VakifbankService : IVakifbankService
 {
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
+    private readonly IMemoryCache _memoryCache; 
 
-    public VakifbankService(HttpClient httpClient, IConfiguration configuration)
+    public VakifbankService(HttpClient httpClient, IConfiguration configuration, IMemoryCache memoryCache)
     {
         _httpClient = httpClient;
         _configuration = configuration;
+        _memoryCache = memoryCache;
         string baseUrl = _configuration["VakifBankB2B:BaseUrl"] ?? throw new InvalidOperationException("BaseUrl eksik!");
         _httpClient.BaseAddress = new Uri(baseUrl);
     }
@@ -49,9 +52,18 @@ public sealed class VakifbankService : IVakifbankService
         return tokenResponse?.AccessToken ?? throw new Exception("Vakıfbank Token boş döndü!");
     }
 
-    // Public servisler için çalışan bağımsız token motoru.
+    // Public servisler için çalışan bağımsız token motoru 
     private async Task<string> GetPublicAccessTokenAsync(CancellationToken cancellationToken)
     {
+        const string cacheKey = "VakifbankPublicToken";
+
+        // 1. Önce hafızaya bak, token var mı ve süresi geçerli mi?
+        if (_memoryCache.TryGetValue(cacheKey, out string? cachedToken) && !string.IsNullOrEmpty(cachedToken))
+        {
+            return cachedToken; // Varsa hiç bankaya gitme, direkt hafızadakini ver!
+        }
+
+        // 2. Eğer hafızada yoksa (veya süresi dolmuşsa) mecburen bankadan yeni token al
         string tokenUrl = _configuration["VakifBankApi:TokenUrl"]
                        ?? throw new InvalidOperationException("VakifBankApi:TokenUrl ayarı eksik!");
 
@@ -77,7 +89,15 @@ public sealed class VakifbankService : IVakifbankService
         }
 
         var tokenResponse = await response.Content.ReadFromJsonAsync<VakifbankTokenResponseDto>(cancellationToken: cancellationToken);
-        return tokenResponse?.AccessToken ?? throw new Exception("Vakıfbank Public Token boş döndü!");
+        var accessToken = tokenResponse?.AccessToken ?? throw new Exception("Vakıfbank Public Token boş döndü!");
+
+        // 3. Alınan yeni token'ı 55 dakika (3300 saniye) boyunca hafızaya hapset!
+        var cacheOptions = new MemoryCacheEntryOptions()
+            .SetAbsoluteExpiration(TimeSpan.FromMinutes(55));
+
+        _memoryCache.Set(cacheKey, accessToken, cacheOptions);
+
+        return accessToken;
     }
 
     // --- HESAP LİSTESİ ÇEKME ---
