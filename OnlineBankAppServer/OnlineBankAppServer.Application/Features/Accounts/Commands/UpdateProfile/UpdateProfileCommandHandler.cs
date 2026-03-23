@@ -21,7 +21,8 @@ internal sealed class UpdateProfileCommandHandler(
         user.City = request.City;
         user.District = request.District;
         user.Neighborhood = request.Neighborhood;
-        user.Adress = request.Address; 
+        user.Adress = request.Address;
+
 
         context.Update(user);
         await context.SaveChangesAsync(cancellationToken);

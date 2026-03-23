@@ -226,7 +226,8 @@ public sealed class VakifbankService : IVakifbankService
             throw new Exception($"Vakıfbank Şehir Listesi Hatası: {response.StatusCode} - {responseContent}");
         }
 
-        return JsonSerializer.Deserialize<VakifbankCityResponseDto>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        JsonSerializerOptions options = new() { PropertyNameCaseInsensitive = true };
+        return JsonSerializer.Deserialize<VakifbankCityResponseDto>(responseContent, options);
     }
 
     // --- İLÇE LİSTESİ ÇEKME ---
@@ -384,7 +385,7 @@ public sealed class VakifbankService : IVakifbankService
             DistanceLimit = distanceLimit
         };
 
-        var json = JsonSerializer.Serialize(requestModel, new JsonSerializerOptions { PropertyNamingPolicy = null });
+        string json = JsonSerializer.Serialize(requestModel, new JsonSerializerOptions { PropertyNamingPolicy = null });
         requestMessage.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
         var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
@@ -395,7 +396,7 @@ public sealed class VakifbankService : IVakifbankService
             throw new Exception($"Vakıfbank En Yakın Şube/ATM Hatası: {response.StatusCode} - {responseContent}");
         }
 
-        var result = JsonSerializer.Deserialize<VakifbankNearestResponseDto>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        VakifbankNearestResponseDto? result = JsonSerializer.Deserialize<VakifbankNearestResponseDto>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
         if (result?.Data?.BranchandATM == null || result.Data.BranchandATM.Count == 0)
         {
@@ -425,7 +426,7 @@ public sealed class VakifbankService : IVakifbankService
             TermDays = termDays
         };
 
-        var json = JsonSerializer.Serialize(requestModel, new JsonSerializerOptions { PropertyNamingPolicy = null });
+        string json = JsonSerializer.Serialize(requestModel, new JsonSerializerOptions { PropertyNamingPolicy = null });
         requestMessage.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
         var response = await _httpClient.SendAsync(requestMessage, cancellationToken);

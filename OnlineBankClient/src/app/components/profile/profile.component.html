@@ -12,7 +12,9 @@
         <div class="card-body p-5">
           
           @if (isLoading()) {
-            <output class="spinner-border text-primary"></output>
+            <output class="spinner-border text-primary">
+              <span class="visually-hidden">Yükleniyor...</span>
+            </output>
             <p class="mt-2 text-muted">Bilgiler yükleniyor...</p>
           } @else if (userProfile()) {
             
@@ -61,7 +63,7 @@
           <div class="row g-4">
             
             <div class="col-md-6">
-              <label for="profileEmail" class="form-label text-muted small fw-bold uppercase">E-Posta Adresi</label>
+              <label for="profileEmail" class="form-label text-muted small fw-bold text-uppercase">E-Posta Adresi</label>
               <div class="input-group">
                 <span class="input-group-text bg-light border-0"><i class="bi bi-envelope text-muted"></i></span>
                 <input id="profileEmail" type="email" class="form-control bg-light border-0" [value]="userProfile()?.email" readonly>
@@ -69,34 +71,75 @@
             </div>
             
             <div class="col-md-6">
-              <label for="profilePhone" class="form-label text-muted small fw-bold uppercase">Cep Telefonu</label>
+              <label for="profilePhone" class="form-label text-muted small fw-bold text-uppercase">Cep Telefonu</label>
               <div class="input-group">
                 <span class="input-group-text bg-light border-0"><i class="bi bi-phone text-muted"></i></span>
-                <input id="profilePhone" type="text" class="form-control bg-light border-0 font-monospace" 
+                <input id="profilePhone" type="text" class="form-control font-monospace" 
                        [readonly]="!isEditMode()" 
-                       [ngClass]="{'bg-white border': isEditMode()}"
+                       [ngClass]="isEditMode() ? 'bg-white border' : 'bg-light border-0'"
                        [(ngModel)]="editData.phoneNumber">
               </div>
             </div>
             
-           <div class="col-md-6">
-              <label for="profileTc" class="form-label text-muted small fw-bold uppercase">TC Kimlik No</label>
+            <div class="col-md-6">
+              <label for="profileTc" class="form-label text-muted small fw-bold text-uppercase">TC Kimlik No</label>
               <div class="input-group">
                 <span class="input-group-text bg-light border-0"><i class="bi bi-person-badge text-muted"></i></span>
                 <input id="profileTc" type="text" class="form-control bg-light border-0 font-monospace" [value]="userProfile()?.identityNumber" readonly disabled>
               </div>
             </div>
             
-           <div class="col-md-6">
-              <label for="profileAddress" class="form-label text-muted small fw-bold uppercase">Kayıtlı Adres</label>
-              <div class="input-group">
-                <span class="input-group-text bg-light border-0"><i class="bi bi-geo-alt text-muted"></i></span>
-                <input id="profileAddress" type="text" class="form-control bg-light border-0" 
-                       [readonly]="!isEditMode()" 
-                       [ngClass]="{'bg-white border': isEditMode()}"
-                       [(ngModel)]="editData.address">
-              </div>
+            <div class="col-12">
+              <label for="profileAddress" class="form-label text-muted small fw-bold text-uppercase">Kayıtlı Adres</label>
+              
+              @if (!isEditMode()) {
+                <div class="input-group mb-2">
+                  <span class="input-group-text bg-light border-0"><i class="bi bi-map text-muted"></i></span>
+                  <input type="text" class="form-control bg-light border-0" 
+                         [value]="(userProfile()?.city || '') + ' / ' + (userProfile()?.district || '') + ' - ' + (userProfile()?.neighborhood || '')" readonly>
+                </div>
+                <div class="input-group">
+                  <span class="input-group-text bg-light border-0"><i class="bi bi-geo-alt text-muted"></i></span>
+                  <textarea id="profileAddress" class="form-control bg-light border-0" rows="2" readonly>{{ userProfile()?.address }}</textarea>
+                </div>
+              } @else {
+                <div class="row g-2 mb-2">
+                  <div class="col-md-4">
+                    <label for="citySelect" class="form-label text-muted small fw-bold text-uppercase">İl</label>
+                    <select id="citySelect" class="form-select bg-white border shadow-none" [(ngModel)]="selectedCityCode" (change)="onCityChange()" name="city">
+                      <option value="" disabled>İl Seçin</option>
+                      @for (city of cities; track city.cityCode) {
+                        <option [value]="city.cityCode">{{ city.cityName }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label for="districtSelect" class="form-label text-muted small fw-bold text-uppercase">İlçe</label>
+                    <select id="districtSelect" class="form-select bg-white border shadow-none" [(ngModel)]="selectedDistrictCode" (change)="onDistrictChange()" [disabled]="!selectedCityCode" name="district">
+                      <option value="" disabled>İlçe Seçin</option>
+                      @for (district of districts; track district.districtCode) {
+                        <option [value]="district.districtCode">{{ district.districtName }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label for="neighborhoodSelect" class="form-label text-muted small fw-bold text-uppercase">Mahalle</label>
+                    <select id="neighborhoodSelect" class="form-select bg-white border shadow-none" [(ngModel)]="selectedNeighborhoodCode" (change)="onNeighborhoodChange()" [disabled]="!selectedDistrictCode" name="neighborhood">
+                      <option value="" disabled>Mahalle Seçin</option>
+                      @for (neighborhood of neighborhoods; track neighborhood.neighborhoodCode) {
+                        <option [value]="neighborhood.neighborhoodCode">{{ neighborhood.neighborhoodName }}</option>
+                      }
+                    </select>
+                  </div>
+                </div>
+                <div class="input-group">
+                  <span class="input-group-text bg-white border"><i class="bi bi-geo-alt text-muted"></i></span>
+                  <textarea id="editProfileAddress" class="form-control bg-white border shadow-none" rows="2" placeholder="Açık Adres (Sokak, Bina, Kapı No)" [(ngModel)]="editData.address" name="address"></textarea>
+                </div>
+              }
             </div>
+
+          </div>
           
           <div class="text-end mt-4">
             @if (!isEditMode()) {
@@ -106,6 +149,8 @@
               <button class="btn btn-sm btn-success rounded-pill px-4 fw-bold shadow-sm" (click)="saveProfile()">Değişiklikleri Kaydet</button>
             }
           </div>
+        </div>
+      </div>
 
       <div class="card border-0 shadow-sm rounded-4">
         <div class="card-header bg-white border-bottom-0 pt-4 pb-0 px-4">
@@ -113,7 +158,7 @@
         </div>
         <div class="card-body p-4">
           
-         <div class="mb-4 pb-3 border-bottom">
+          <div class="mb-4 pb-3 border-bottom">
             <div class="d-flex justify-content-between align-items-center">
               <div>
                 <h6 class="fw-bold mb-1">Şifre Değişikliği</h6>
@@ -127,22 +172,22 @@
               }
             </div>
 
-           @if (isPasswordEditMode()) {
+            @if (isPasswordEditMode()) {
               <div class="mt-3 p-4 bg-light rounded-4 border">
                 <div class="row g-3">
                   
                   <div class="col-12">
-                    <label for="currentPassword" class="form-label small fw-bold text-muted uppercase">Mevcut Şifreniz</label>
+                    <label for="currentPassword" class="form-label small fw-bold text-muted text-uppercase">Mevcut Şifreniz</label>
                     <input id="currentPassword" type="password" class="form-control" [(ngModel)]="passwordData.currentPassword" placeholder="Şu anki şifrenizi girin">
                   </div>
                   
                   <div class="col-md-6">
-                    <label for="newPassword" class="form-label small fw-bold text-muted uppercase">Yeni Şifre</label>
+                    <label for="newPassword" class="form-label small fw-bold text-muted text-uppercase">Yeni Şifre</label>
                     <input id="newPassword" type="password" class="form-control" [(ngModel)]="passwordData.newPassword" placeholder="Yeni şifreniz">
                   </div>
                   
                   <div class="col-md-6">
-                    <label for="confirmPassword" class="form-label small fw-bold text-muted uppercase">Yeni Şifre (Tekrar)</label>
+                    <label for="confirmPassword" class="form-label small fw-bold text-muted text-uppercase">Yeni Şifre (Tekrar)</label>
                     <input id="confirmPassword" type="password" class="form-control" [(ngModel)]="passwordData.confirmPassword" placeholder="Yeni şifrenizi doğrulayın">
                   </div>
                   
@@ -157,6 +202,7 @@
                 </div>
               </div>
             }
+          </div>
 
           <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
             <div>
