@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { Router } from '@angular/router';
 import { VakifbankService } from '../../services/vakifbank.service';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-profile',
@@ -16,10 +17,11 @@ export class ProfileComponent implements OnInit {
   authService = inject(AuthService);
   router = inject(Router);
   platformId = inject(PLATFORM_ID);
-  vakifbankService = inject(VakifbankService); 
+  vakifbankService = inject(VakifbankService);
 
   public userProfile = signal<any>(null);
   public isLoading = signal(true);
+  
   public isEditMode = signal(false);
   public editData: any = { 
     phoneNumber: '', 
@@ -40,12 +42,9 @@ export class ProfileComponent implements OnInit {
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
-      this.loadCities(); // Component yüklenirken şehirleri hazırla
-
       this.authService.getProfile().subscribe({
         next: (res) => {
           this.userProfile.set(res);
-          // Gelen verileri düzenleme modeline kopyala (Tüm zorunlu alanlar)
           this.editData = { 
             firstName: res.firstName || res.FirstName || '',
             lastName: res.lastName || res.LastName || '',
@@ -56,6 +55,8 @@ export class ProfileComponent implements OnInit {
             address: res.address || res.Address || '' 
           };
           this.isLoading.set(false);
+
+          this.loadCitiesAndAutoSelect();
         },
         error: (err) => {
           console.error("Profil bilgileri çekilemedi", err);
@@ -65,15 +66,96 @@ export class ProfileComponent implements OnInit {
     }
   }
 
-  loadCities() {
-    this.vakifbankService.getCities().subscribe({
-      next: (res: any) => {
-        this.cities = res.Data?.City || res.data?.city || [];
-      },
-      error: (err: any) => console.error("İller yüklenirken hata:", err)
-    });
+  async loadCitiesAndAutoSelect() {
+    try {
+      // 1. ŞEHİRLER: Katmanı çöz ve HTML'in beklediği küçük harfli formata dönüştür (.map ile)
+      const cRes: any = await firstValueFrom(this.vakifbankService.getCities());
+      const cityData = cRes.data?.Data || cRes.data?.data || cRes.Data || cRes.data || cRes;
+      const rawCities = cityData?.City || cityData?.city || [];
+      
+      this.cities = rawCities.map((c: any) => ({
+        cityCode: String(c.cityCode || c.CityCode),
+        cityName: c.cityName || c.CityName
+      }));
+      
+      if (!this.editData.city) {
+        this.resetDropdownState(1);
+        return; 
+      }
+      
+      const matchedCity = this.cities.find(c => c.cityName?.trim().toUpperCase() === this.editData.city?.trim().toUpperCase());
+      if (!matchedCity) {
+        this.resetDropdownState(1);
+        return; 
+      }
+      
+      this.selectedCityCode = matchedCity.cityCode;
+      const formattedCityCode = String(this.selectedCityCode).padStart(2, '0');
+
+      // 2. İLÇELER: Katmanı çöz ve dönüştür
+      const dRes: any = await firstValueFrom(this.vakifbankService.getDistricts(formattedCityCode));
+      const districtData = dRes.data?.Data || dRes.data?.data || dRes.Data || dRes.data || dRes;
+      const rawDistricts = districtData?.District || districtData?.district || [];
+
+      this.districts = rawDistricts.map((d: any) => ({
+        districtCode: String(d.districtCode || d.DistrictCode),
+        districtName: d.districtName || d.DistrictName
+      }));
+
+      if (!this.editData.district) {
+        this.resetDropdownState(2);
+        return; 
+      }
+
+      const matchedDistrict = this.districts.find(d => d.districtName?.trim().toUpperCase() === this.editData.district?.trim().toUpperCase());
+      if (!matchedDistrict) {
+        this.resetDropdownState(2);
+        return;
+      }
+
+      this.selectedDistrictCode = matchedDistrict.districtCode;
+
+      // 3. MAHALLELER: Katmanı çöz ve dönüştür
+      const nRes: any = await firstValueFrom(this.vakifbankService.getNeighborhoods(this.selectedDistrictCode));
+      const neighborhoodData = nRes.data?.Data || nRes.data?.data || nRes.Data || nRes.data || nRes;
+      const rawNeighborhoods = neighborhoodData?.Neighborhood || neighborhoodData?.neighborhood || [];
+
+      this.neighborhoods = rawNeighborhoods.map((n: any) => ({
+        neighborhoodCode: String(n.neighborhoodCode || n.NeighborhoodCode),
+        neighborhoodName: n.neighborhoodName || n.NeighborhoodName
+      }));
+
+      if (!this.editData.neighborhood) {
+        this.resetDropdownState(3);
+        return; 
+      }
+
+      const matchedNeigh = this.neighborhoods.find(n => n.neighborhoodName?.trim().toUpperCase() === this.editData.neighborhood?.trim().toUpperCase());
+      if (!matchedNeigh) {
+        this.resetDropdownState(3);
+        return;
+      }
+
+      this.selectedNeighborhoodCode = matchedNeigh.neighborhoodCode;
+
+    } catch (err) {
+      console.error("Adres eşleştirme veya yükleme sırasında hata oluştu:", err);
+    }
   }
 
+  private resetDropdownState(level: number) {
+    if (level <= 1) this.selectedCityCode = '';
+    if (level <= 2) {
+      this.selectedDistrictCode = '';
+      this.districts = [];
+    }
+    if (level <= 3) {
+      this.selectedNeighborhoodCode = '';
+      this.neighborhoods = [];
+    }
+  }
+
+  // Kullanıcı dropdown'dan yeni bir il seçtiğinde tetiklenir
   onCityChange() {
     this.selectedDistrictCode = '';
     this.selectedNeighborhoodCode = '';
@@ -86,14 +168,24 @@ export class ProfileComponent implements OnInit {
     this.editData.city = selected ? selected.cityName : '';
 
     if (this.selectedCityCode) {
-      this.vakifbankService.getDistricts(this.selectedCityCode).subscribe({
+      const formattedCityCode = String(this.selectedCityCode).padStart(2, '0');
+
+      this.vakifbankService.getDistricts(formattedCityCode).subscribe({
         next: (res: any) => {
-          this.districts = res.Data?.District || res.data?.district || [];
+          // İlçeler gelirken de güvenli şekilde map'le
+          const districtData = res.data?.Data || res.data?.data || res.Data || res.data || res;
+          const rawDistricts = districtData?.District || districtData?.district || [];
+          
+          this.districts = rawDistricts.map((d: any) => ({
+            districtCode: String(d.districtCode || d.DistrictCode),
+            districtName: d.districtName || d.DistrictName
+          }));
         }
       });
     }
   }
 
+  // Kullanıcı dropdown'dan yeni bir ilçe seçtiğinde tetiklenir
   onDistrictChange() {
     this.selectedNeighborhoodCode = '';
     this.editData.neighborhood = '';
@@ -105,7 +197,14 @@ export class ProfileComponent implements OnInit {
     if (this.selectedDistrictCode) {
       this.vakifbankService.getNeighborhoods(this.selectedDistrictCode).subscribe({
         next: (res: any) => {
-          this.neighborhoods = res.Data?.Neighborhood || res.data?.neighborhood || [];
+          // Mahalleler gelirken de güvenli şekilde map'le
+          const neighborhoodData = res.data?.Data || res.data?.data || res.Data || res.data || res;
+          const rawNeighborhoods = neighborhoodData?.Neighborhood || neighborhoodData?.neighborhood || [];
+          
+          this.neighborhoods = rawNeighborhoods.map((n: any) => ({
+            neighborhoodCode: String(n.neighborhoodCode || n.NeighborhoodCode),
+            neighborhoodName: n.neighborhoodName || n.NeighborhoodName
+          }));
         }
       });
     }
@@ -116,10 +215,8 @@ export class ProfileComponent implements OnInit {
     this.editData.neighborhood = selected ? selected.neighborhoodName : '';
   }
 
-  // Düzenleme modunu aç/kapat
   toggleEditMode(): void {
     this.isEditMode.set(!this.isEditMode());
-    // İptal edilirse, orijinal verileri geri yükle
     if (!this.isEditMode()) {
       const res = this.userProfile();
       this.editData = { 
@@ -132,30 +229,28 @@ export class ProfileComponent implements OnInit {
         address: res.address || res.Address || '' 
       };
       
-      // Dropdown seçimlerini sıfırla
-      this.selectedCityCode = '';
-      this.selectedDistrictCode = '';
-      this.selectedNeighborhoodCode = '';
-      this.districts = [];
-      this.neighborhoods = [];
+      this.loadCitiesAndAutoSelect();
     }
   }
 
-  // Yeni bilgileri kaydet
   saveProfile(): void {
-    // Güvenlik Kalkanı: Form eksikse backend'e gitmesin
     if (!this.editData.city || !this.editData.district || !this.editData.neighborhood || !this.editData.address) {
       alert("Lütfen İl, İlçe, Mahalle ve Açık Adres bilgilerinizi eksiksiz doldurun!");
       return;
     }
 
-    this.authService.updateProfile(this.editData).subscribe({
+    const payload = {
+      phoneNumber: this.editData.phoneNumber,
+      city: this.editData.city,
+      district: this.editData.district,
+      neighborhood: this.editData.neighborhood,
+      address: this.editData.address
+    };
+
+    this.authService.updateProfile(payload).subscribe({
       next: (res) => {
-        // Arayüzdeki ana sinyali yeni verilerle güncelle
         const updatedProfile = { 
           ...this.userProfile(), 
-          firstName: this.editData.firstName,
-          lastName: this.editData.lastName,
           phoneNumber: this.editData.phoneNumber, 
           city: this.editData.city,
           district: this.editData.district,
@@ -164,12 +259,12 @@ export class ProfileComponent implements OnInit {
         };
         this.userProfile.set(updatedProfile);
         
-        this.isEditMode.set(false); // Düzenleme modunu kapat
+        this.isEditMode.set(false);
         alert("Harika! Profil bilgileriniz başarıyla güncellendi.");
       },
       error: (err) => {
         console.error("Güncelleme hatası", err);
-        alert("Güncelleme sırasında bir sorun oluştu.");
+        alert("Güncelleme sırasında bir sorun oluştu: " + (err.error?.message || err.message));
       }
     });
   }
@@ -179,13 +274,11 @@ export class ProfileComponent implements OnInit {
     this.router.navigateByUrl('/login');
   }
 
-  // Şifre Değiştirme Modu Kontrolleri
   public isPasswordEditMode = signal(false);
   public passwordData = { currentPassword: '', newPassword: '', confirmPassword: '' };
 
   togglePasswordMode(): void {
     this.isPasswordEditMode.set(!this.isPasswordEditMode());
-    // İptal edilirse formun içini temizle
     this.passwordData = { currentPassword: '', newPassword: '', confirmPassword: '' };
   }
 
@@ -198,7 +291,7 @@ export class ProfileComponent implements OnInit {
     this.authService.changePassword(this.passwordData).subscribe({
       next: (res) => {
         alert("Harika! Şifreniz başarıyla güncellendi. Güvenliğiniz için çıkış yapılıyor...");
-        this.logout(); // Şifre değiştiği için sistemi sıfırlayıp Login'e atıyoruz!
+        this.logout();
       },
       error: (err) => {
         console.error("Şifre güncelleme hatası", err);

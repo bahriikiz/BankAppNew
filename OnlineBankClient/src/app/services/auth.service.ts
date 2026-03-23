@@ -46,8 +46,8 @@ export class AuthService {
     return this.http.get(`${this.apiUrl}/my-profile`);
   }
 
-  updateProfile(data: { phoneNumber: string, address: string }): Observable<any> {
-    return this.http.put(`${this.apiUrl}/update-profile`, data);
+  updateProfile(data: { phoneNumber: string, city: string, district: string, neighborhood: string, address: string }): Observable<any> {
+   return this.http.put(`${this.apiUrl}/update-profile`, data);
   }
 
   changePassword(data: any): Observable<any> {
