@@ -8,7 +8,6 @@ import { AiChatComponent } from './components/ai-chat/ai-chat.component'; // YEN
 @Component({
   selector: 'app-root',
   standalone: true,
-  // YENİ: AiChatComponent buraya eklendi!
   imports: [CommonModule, RouterOutlet, RouterLink, AiChatComponent], 
   templateUrl: './app.html',
   styleUrl: './app.css'

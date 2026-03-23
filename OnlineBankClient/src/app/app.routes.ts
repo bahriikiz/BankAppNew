@@ -6,6 +6,7 @@ import { ProfileComponent } from './components/profile/profile.component';
 import { CreateAccountComponent } from './components/create-account/create-account.component';
 import { AccountDetailsComponent } from './components/account-details/account-details.component';
 import { MoneyTransferComponent } from './components/money-transfer/money-transfer.component';
+import { BankListComponent } from './components/bank-list/bank-list.component';
 
 export const routes: Routes = [
   // Herkesi karşılayan ana sayfa
@@ -23,6 +24,8 @@ export const routes: Routes = [
   { path: 'account/:id', component: AccountDetailsComponent }, // Hesap detayları için dinamik rota
   { path: 'transfer', component: MoneyTransferComponent }, // Para transferi sayfası
   
-  // DİKKAT: Yanlış URL'leri ana sayfaya yollayan Catch-All rotası EN SONDA olmalıdır!
+  { path: 'banks', component: BankListComponent }, // Bankalar ve Şubeler
+
+
   { path: '**', redirectTo: '' }
 ];
