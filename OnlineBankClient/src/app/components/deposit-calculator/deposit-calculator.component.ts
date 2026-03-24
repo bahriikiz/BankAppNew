@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { VakifbankService } from '../../services/vakifbank.service';
@@ -10,27 +10,82 @@ import { VakifbankService } from '../../services/vakifbank.service';
   templateUrl: './deposit-calculator.component.html',
   styleUrl: './deposit-calculator.component.css'
 })
-export class DepositCalculatorComponent {
+export class DepositCalculatorComponent implements OnInit {
   vakifbankService = inject(VakifbankService);
 
-  // Senin Postman'deki girdi değerlerin (Varsayılan olarak dolu gelsin)
+  products: any[] = [];
+  selectedProduct: any = null;
+
+  // Hesaplama için API'ye gidecek istek gövdesi
   request = {
     amount: 600000,
     currencyCode: 'TL',
-    depositType: 55500003,
-    campaignId: 6000002324,
+    depositType: 0,
+    campaignId: 0,
     termDays: 32
   };
 
-  // Sonuç Parametreleri
   result: any = null;
   isLoading = signal(false);
   errorMessage: string = '';
 
+  ngOnInit() {
+    this.loadProducts();
+  }
+
+  loadProducts() {
+    this.vakifbankService.getDepositProducts().subscribe({
+      next: (res: any) => {
+        const data = res.data?.Data || res.data?.data || res.Data || res.data || res;
+        this.products = data?.DepositProduct || data?.depositProduct || [];
+        
+        
+        if (this.products.length > 0) {
+          this.selectedProduct = this.products[0];
+          this.onProductChange();
+        }
+      },
+      error: (err) => {
+        console.error("Mevduat ürünleri getirilemedi:", err);
+      }
+    });
+  }
+
+ 
+  onProductChange() {
+    if (this.selectedProduct) {
+      this.request.depositType = Number(this.selectedProduct.ProductCode || this.selectedProduct.productCode);
+      this.request.campaignId = Number(this.selectedProduct.CampaignId || this.selectedProduct.campaignId);
+      this.errorMessage = ''; 
+      
+      const supportedCurrencies = this.selectedProduct.CurrencyCode || this.selectedProduct.currencyCode || [];
+      if (supportedCurrencies.length > 0 && !supportedCurrencies.includes(this.request.currencyCode)) {
+        this.request.currencyCode = supportedCurrencies[0];
+      }
+    }
+  }
+
   calculate() {
-    this.isLoading.set(true);
     this.errorMessage = '';
     this.result = null;
+
+    if (this.selectedProduct) {
+      const minAmount = this.selectedProduct.MinAmount || this.selectedProduct.minAmount;
+      const maxAmount = this.selectedProduct.MaxAmount || this.selectedProduct.maxAmount;
+      const minTerm = this.selectedProduct.MinTerm || this.selectedProduct.minTerm;
+      const maxTerm = this.selectedProduct.MaxTerm || this.selectedProduct.maxTerm;
+
+      if (this.request.amount < minAmount || this.request.amount > maxAmount) {
+        this.errorMessage = `Seçilen ürün için tutar ${minAmount} ile ${maxAmount} arasında olmalıdır.`;
+        return;
+      }
+      if (this.request.termDays < minTerm || this.request.termDays > maxTerm) {
+        this.errorMessage = `Seçilen ürün için vade ${minTerm} ile ${maxTerm} gün arasında olmalıdır.`;
+        return;
+      }
+    }
+
+    this.isLoading.set(true);
 
     this.vakifbankService.calculateDeposit(
       this.request.amount,
@@ -40,14 +95,13 @@ export class DepositCalculatorComponent {
       this.request.termDays
     ).subscribe({
       next: (res: any) => {
-        // Backend'den dönen Data.Deposit objesine ulaşıyoruz
         const responseData = res.data?.Data || res.data?.data || res.Data || res.data || res;
         this.result = responseData?.Deposit || responseData?.deposit;
         this.isLoading.set(false);
       },
       error: (err) => {
         console.error('Hesaplama hatası:', err);
-        this.errorMessage = 'Mevduat hesaplanırken bir hata oluştu. Lütfen tekrar deneyin.';
+        this.errorMessage = err.error?.message || 'Mevduat hesaplanırken bir hata oluştu.';
         this.isLoading.set(false);
       }
     });

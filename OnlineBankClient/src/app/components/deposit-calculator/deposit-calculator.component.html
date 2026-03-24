@@ -1,73 +1,106 @@
-<div class="container mt-4">
-  <div class="card shadow">
-    <div class="card-header bg-primary text-white">
-      <h4 class="mb-0">Mevduat Getirisi Hesaplama</h4>
+<div class="container mt-4 mb-5">
+  <div class="card shadow border-0 rounded-4">
+    <div class="card-header text-white" style="background-color: #A90432;">
+      <h4 class="mb-0 py-2"><i class="bi bi-calculator me-2"></i>Mevduat Getirisi Hesaplama</h4>
     </div>
-    <div class="card-body">
+    <div class="card-body p-4 p-md-5 bg-light">
       <div class="row">
         
-        <div class="col-md-5 border-end">
-          <div class="mb-3">
-            <label for="amountInput" class="form-label">Tutar</label>
-            <input id="amountInput" type="number" class="form-control" [(ngModel)]="request.amount">
-          </div>
+        <div class="col-md-5 border-end pe-md-4">
           
-          <div class="mb-3">
-            <label for="currencyInput" class="form-label">Para Birimi</label>
-            <select id="currencyInput" class="form-select" [(ngModel)]="request.currencyCode">
-              <option value="TL">TL</option>
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
+          <div class="mb-4">
+            <label for="productSelect" class="form-label fw-bold" style="color: #A90432;">Mevduat Ürünü Seçiniz</label>
+            <select *ngIf="products.length > 0" id="productSelect" class="form-select shadow-sm" [(ngModel)]="selectedProduct" (change)="onProductChange()">
+              <option *ngFor="let p of products" [ngValue]="p">{{ p.ProductName || p.productName }}</option>
             </select>
+            
+            <div *ngIf="products.length === 0" class="d-flex align-items-center mt-2 text-muted small">
+              <div class="spinner-border spinner-border-sm me-2" aria-hidden="true" style="color: #A90432;"></div>
+              Mevduat ürünleri yükleniyor...
+            </div>
+            
+            <div *ngIf="selectedProduct && (selectedProduct.InformationMessage || selectedProduct.informationMessage)" class="alert alert-secondary mt-3 p-3 small border-0 shadow-sm">
+              <i class="bi bi-info-circle-fill me-1" style="color: #A90432;"></i>
+              {{ selectedProduct.InformationMessage || selectedProduct.informationMessage }}
+              <a *ngIf="selectedProduct.DetailInfoLink" [href]="selectedProduct.DetailInfoLink" target="_blank" class="fw-bold d-block mt-2 text-decoration-none" style="color: #A90432;">
+                Detaylı Bilgi İçin Tıklayın <i class="bi bi-box-arrow-up-right ms-1"></i>
+              </a>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-8 mb-3">
+              <label for="amountInput" class="form-label fw-medium">Tutar</label>
+              <input id="amountInput" type="number" class="form-control shadow-sm" [(ngModel)]="request.amount">
+              <div *ngIf="selectedProduct" class="form-text small text-muted mt-1" style="font-size: 0.75rem;">
+                Min: {{ (selectedProduct.MinAmount || selectedProduct.minAmount) | number:'1.0-0' }} | Max: {{ (selectedProduct.MaxAmount || selectedProduct.maxAmount) | number:'1.0-0' }}
+              </div>
+            </div>
+            <div class="col-4 mb-3">
+              <label for="currencyInput" class="form-label fw-medium">Kur</label>
+              <select id="currencyInput" class="form-select shadow-sm" [(ngModel)]="request.currencyCode">
+                <option *ngFor="let curr of (selectedProduct?.CurrencyCode || selectedProduct?.currencyCode)" [value]="curr">
+                  {{ curr }}
+                </option>
+              </select>
+            </div>
           </div>
           
-          <div class="mb-3">
-            <label for="termDaysInput" class="form-label">Vade (Gün)</label>
-            <input id="termDaysInput" type="number" class="form-control" [(ngModel)]="request.termDays">
+          <div class="mb-4">
+            <label for="termDaysInput" class="form-label fw-medium">Vade (Gün)</label>
+            <input id="termDaysInput" type="number" class="form-control shadow-sm" [(ngModel)]="request.termDays">
+            <div *ngIf="selectedProduct" class="form-text small text-muted mt-1" style="font-size: 0.75rem;">
+               Vade Aralığı: {{ selectedProduct.MinTerm || selectedProduct.minTerm }} - {{ selectedProduct.MaxTerm || selectedProduct.maxTerm }} Gün
+            </div>
           </div>
           
-          <button class="btn btn-primary w-100 mt-2" (click)="calculate()" [disabled]="isLoading()">
-            <span *ngIf="isLoading()" class="spinner-border spinner-border-sm me-2"></span>
-            Faiz Getirisini Hesapla
+          <button class="btn w-100 mt-2 shadow py-2 fw-bold text-white rounded-pill" style="background-color: #A90432;" (click)="calculate()" [disabled]="isLoading() || !selectedProduct">
+            <span *ngIf="isLoading()" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+            <i *ngIf="!isLoading()" class="bi bi-calculator me-2"></i>Faiz Getirisini Hesapla
           </button>
           
-          <div *ngIf="errorMessage" class="alert alert-danger mt-3">
-            {{ errorMessage }}
+          <div *ngIf="errorMessage" class="alert alert-danger mt-3 shadow-sm border-0 small d-flex align-items-center">
+            <i class="bi bi-exclamation-triangle-fill fs-5 me-2"></i> 
+            <div>{{ errorMessage }}</div>
           </div>
         </div>
 
-        <div class="col-md-7">
-          <div *ngIf="!result && !isLoading()" class="text-center text-muted mt-5">
-            <i class="fas fa-calculator fa-3x mb-3"></i>
-            <p>Faiz ve getiri miktarını görmek için "Hesapla" butonuna tıklayın.</p>
+        <div class="col-md-7 ps-md-4 mt-4 mt-md-0">
+          
+          <div *ngIf="!result && !isLoading()" class="h-100 d-flex flex-column align-items-center justify-content-center text-muted" style="min-height: 300px; opacity: 0.6;">
+            <i class="bi bi-piggy-bank-fill" style="font-size: 6rem; color: #A90432;"></i>
+            <p class="mt-3 fs-5 text-center">Faiz ve getiri miktarını görmek için <br>"Hesapla" butonuna tıklayın.</p>
           </div>
 
-          <div *ngIf="result" class="p-4 bg-light rounded border">
-            <h5 class="text-success mb-4 text-center">Hesaplama Sonucu</h5>
+          <div *ngIf="result" class="p-4 bg-white rounded-4 shadow-sm border h-100 animate__animated animate__fadeIn">
+            <h5 class="mb-4 text-center fw-bold" style="color: #A90432;">
+              <i class="bi bi-check-circle-fill me-2"></i>Hesaplama Sonucu
+            </h5>
             
-            <ul class="list-group list-group-flush mb-3">
-              <li class="list-group-item d-flex justify-content-between bg-transparent">
-                <span>Yıllık Faiz Oranı:</span>
-                <strong>%{{ result.InterestRate }}</strong>
+            <ul class="list-group list-group-flush mb-4">
+              <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent py-3">
+                <span class="text-muted fw-medium">Yıllık Faiz Oranı:</span>
+                <strong class="fs-5">%{{ result.InterestRate || result.interestRate }}</strong>
               </li>
-              <li class="list-group-item d-flex justify-content-between bg-transparent">
-                <span>Net Faiz Getirisi:</span>
-                <strong class="text-success">+{{ result.NetInterestAmount | currency:'TRY':'symbol-narrow':'1.2-2' }}</strong>
+              <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent py-3">
+                <span class="text-muted fw-medium">Net Faiz Getirisi:</span>
+                <strong class="text-success fs-5">+{{ (result.NetInterestAmount || result.netInterestAmount) | currency:(request.currencyCode === 'TL' ? 'TRY' : request.currencyCode):'symbol-narrow':'1.2-2' }}</strong>
               </li>
-              <li class="list-group-item d-flex justify-content-between bg-transparent border-bottom-0 pb-0">
-                <span class="fs-6 mt-1">Vade Sonu Toplam Tutar:</span>
-                <strong class="text-primary fs-4">{{ result.NetAmount | currency:'TRY':'symbol-narrow':'1.2-2' }}</strong>
+              <li class="list-group-item d-flex justify-content-between align-items-center bg-light rounded-3 mt-2 py-3 border-0 shadow-sm">
+                <span class="fs-6 fw-bold" style="color: #A90432;">Vade Sonu Toplam Tutar:</span>
+                <strong class="fs-3" style="color: #A90432;">{{ (result.NetAmount || result.netAmount) | currency:(request.currencyCode === 'TL' ? 'TRY' : request.currencyCode):'symbol-narrow':'1.2-2' }}</strong>
               </li>
             </ul>
 
-            <hr>
-            <div class="d-flex justify-content-between text-muted small px-3">
-              <span>Stopaj Oranı: %{{ result.WithholdingRate }}</span>
-              <span>Stopaj Kesintisi: {{ result.WithholdingAmount | currency:'TRY':'symbol-narrow':'1.2-2' }}</span>
+            <hr class="text-muted opacity-25">
+            <div class="d-flex justify-content-between text-muted small px-2">
+              <span>Stopaj Oranı: %{{ result.WithholdingRate || result.withholdingRate }}</span>
+              <span>Stopaj Kesintisi: {{ (result.WithholdingAmount || result.withholdingAmount) | currency:(request.currencyCode === 'TL' ? 'TRY' : request.currencyCode):'symbol-narrow':'1.2-2' }}</span>
             </div>
 
-            <div class="alert alert-info small mt-4" *ngIf="result.InformationMessage">
-              <i class="fas fa-info-circle me-1"></i> {{ result.InformationMessage }}
+            <div class="alert alert-info small mt-4 border-0 shadow-sm d-flex" *ngIf="result.InformationMessage || result.informationMessage">
+              <i class="bi bi-info-circle-fill me-2 mt-1"></i>
+              <div>{{ result.InformationMessage || result.informationMessage }}</div>
             </div>
           </div>
         </div>

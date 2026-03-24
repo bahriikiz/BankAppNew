@@ -40,4 +40,8 @@ calculateDeposit(amount: number, currencyCode: string, depositType: number, camp
   getNearestBranchAndAtm(latitude: string, longitude: string, distanceLimit: number = 5): Observable<any> {
     return this.http.get(`${this.baseUrl}/nearest?latitude=${latitude}&longitude=${longitude}&distanceLimit=${distanceLimit}`);
   }
+
+  getDepositProducts(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/deposit/products`); 
+  }
 }
