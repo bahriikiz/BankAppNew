@@ -45,38 +45,43 @@ export class HomeComponent implements OnInit {
     this.branches = []; 
 
     if (this.selectedCityCode) {
-      const formattedCityCode = String(this.selectedCityCode).padStart(2, '0');
-      
-      this.vakifbankService.getDistricts(formattedCityCode).subscribe({
-        next: (res: any) => {
-          const data = res.data?.Data || res.data?.data || res.Data || res.data || res;
-          const rawDistricts = data?.District || data?.district || [];
-          this.districts = rawDistricts.map((d: any) => ({
-            districtCode: String(d.districtCode || d.DistrictCode).trim(),
-            districtName: d.districtName || d.DistrictName
-          }));
-        }
-      });
+        const formattedCityCode = String(this.selectedCityCode).padStart(2, '0');
+        
+        this.vakifbankService.getDistricts(formattedCityCode).subscribe({
+            next: (res: any) => {
+                const data = res.data?.Data || res.data?.data || res.Data || res.data || res;
+                const rawDistricts = data?.District || data?.district || [];
+                
+                this.districts = rawDistricts.map((d: any) => ({
+                    districtCode: String(d.BankDistrictCode || d.bankDistrictCode).trim(),
+                    districtName: d.districtName || d.DistrictName
+                }));
+                console.log("Eşleşen İlçeler (BankDistrictCode ile):", this.districts);
+            }
+        });
     }
-  }
+}
 
   onDistrictChange() {
     this.branches = [];
     if (this.selectedCityCode && this.BankDistrictCode) {
-      this.isLoadingBranches.set(true);
-      
-      this.vakifbankService.getBranches(this.selectedCityCode, this.BankDistrictCode).subscribe({
-        next: (res: any) => {
-          const data = res.data?.Data || res.data?.data || res.Data || res.data || res;
-          this.branches = data?.Branch || data?.branch || [];
-          this.isLoadingBranches.set(false);
-        },
-        error: (err) => {
-          console.warn("Şube bulunamadı:", err.error?.message || err.message);
-          this.branches = [];
-          this.isLoadingBranches.set(false);
-        }
-      });
+        this.isLoadingBranches.set(true);
+        
+        const city = String(this.selectedCityCode).padStart(2, '0');
+        const district = String(this.BankDistrictCode);
+
+        this.vakifbankService.getBranches(city, district).subscribe({
+            next: (res: any) => {
+                const data = res.data?.Data || res.data?.data || res.Data || res.data || res;
+                this.branches = data?.Branch || data?.branch || [];
+                this.isLoadingBranches.set(false);
+            },
+            error: (err) => {
+                console.error("Şube getirme hatası:", err);
+                this.branches = [];
+                this.isLoadingBranches.set(false);
+            }
+        });
     }
-  }
+}
 }

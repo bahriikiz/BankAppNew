@@ -25,7 +25,7 @@ export class VakifbankService {
     return this.http.get(`${this.baseUrl}/banks`);
   }
 
-  getBranches(CityCode: string, BankDistrictCode: string): Observable<any> {
-    return this.http.get(`${this.baseUrl}/cities/${CityCode}/districts/${BankDistrictCode}/branches`);
-  }
+  getBranches(cityCode: string, bankDistrictCode: string): Observable<any> {
+  return this.http.get(`${this.baseUrl}/cities/${cityCode}/districts/${bankDistrictCode}/branches`);
+}
 }
