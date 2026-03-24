@@ -32,4 +32,8 @@ export class VakifbankService {
 calculateDeposit(amount: number, currencyCode: string, depositType: number, campaignId: number, termDays: number): Observable<any> {
     return this.http.get(`${this.baseUrl}/deposit/calculate?amount=${amount}&currencyCode=${currencyCode}&depositType=${depositType}&campaignId=${campaignId}&termDays=${termDays}`);
   }
+
+  getBankList(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/banks`); 
+  }
 }

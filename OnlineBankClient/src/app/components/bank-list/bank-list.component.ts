@@ -8,90 +8,46 @@ import { VakifbankService } from '../../services/vakifbank.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './bank-list.component.html',
-  styleUrl: './bank-list.component.css'
+  styleUrl: './bank-list.component.css' 
 })
 export class BankListComponent implements OnInit {
   vakifbankService = inject(VakifbankService);
 
-  // --- Banka Listesi ---
   banks: any[] = [];
-  isLoadingBanks = signal(true);
-
-  // --- Şube Arama Şelalesi ---
-  cities: any[] = [];
-  districts: any[] = [];
-  branches: any[] = [];
-
-  selectedCityCode: string = '';
-  selectedDistrictCode: string = '';
-  isLoadingBranches = signal(false);
+  filteredBanks: any[] = [];
+  searchTerm: string = '';
+  isLoading = signal(true);
 
   ngOnInit() {
     this.loadBanks();
-    this.loadCities();
   }
 
   loadBanks() {
-    this.vakifbankService.getBanks().subscribe({
+    this.vakifbankService.getBankList().subscribe({
       next: (res: any) => {
         const data = res.data?.Data || res.data?.data || res.Data || res.data || res;
-        this.banks = data?.Bank || data?.bank || [];
-        this.isLoadingBanks.set(false);
+        
+        this.banks = data?.Banks || data?.banks || []; 
+        this.filteredBanks = this.banks;
+        
+        this.isLoading.set(false);
       },
       error: (err) => {
-        console.error("Banka listesi çekilemedi", err);
-        this.isLoadingBanks.set(false);
+        console.error("Bankalar getirilemedi:", err);
+        this.isLoading.set(false);
       }
     });
   }
 
-  loadCities() {
-    this.vakifbankService.getCities().subscribe({
-      next: (res: any) => {
-        const data = res.data?.Data || res.data?.data || res.Data || res.data || res;
-        const rawCities = data?.City || data?.city || [];
-        this.cities = rawCities.map((c: any) => ({
-          cityCode: String(c.cityCode || c.CityCode).padStart(2, '0'), // Güvenlik 1: Sıfır ekleme
-          cityName: c.cityName || c.CityName
-        }));
-      }
-    });
-  }
-
-  onCityChange() {
-    this.selectedDistrictCode = '';
-    this.districts = [];
-    this.branches = []; // Şehir değişirse şubeleri temizle
-
-    if (this.selectedCityCode) {
-      this.vakifbankService.getDistricts(this.selectedCityCode).subscribe({
-        next: (res: any) => {
-          const data = res.data?.Data || res.data?.data || res.Data || res.data || res;
-          const rawDistricts = data?.District || data?.district || [];
-          this.districts = rawDistricts.map((d: any) => ({
-            districtCode: String(d.districtCode || d.DistrictCode),
-            districtName: d.districtName || d.DistrictName
-          }));
-        }
-      });
-    }
-  }
-
-  onDistrictChange() {
-    this.branches = [];
-    if (this.selectedCityCode && this.selectedDistrictCode) {
-      this.isLoadingBranches.set(true);
-      this.vakifbankService.getBranches(this.selectedCityCode, this.selectedDistrictCode).subscribe({
-        next: (res: any) => {
-          const data = res.data?.Data || res.data?.data || res.Data || res.data || res;
-          this.branches = data?.Branch || data?.branch || [];
-          this.isLoadingBranches.set(false);
-        },
-        error: (err) => {
-          console.error("Şubeler çekilemedi", err);
-          this.isLoadingBranches.set(false);
-        }
-      });
+  // Arama çubuğuna yazıldıkça çalışan filtre fonksiyonu
+  filterBanks() {
+    if (this.searchTerm) { 
+      this.filteredBanks = this.banks.filter(b => 
+        (b.bankName || b.BankName)?.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
+        (b.bankCode || b.BankCode)?.includes(this.searchTerm)
+      );
+    } else {
+      this.filteredBanks = this.banks;
     }
   }
 }
