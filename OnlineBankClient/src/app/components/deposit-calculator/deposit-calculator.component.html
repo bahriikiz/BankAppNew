@@ -1,0 +1,78 @@
+<div class="container mt-4">
+  <div class="card shadow">
+    <div class="card-header bg-primary text-white">
+      <h4 class="mb-0">Mevduat Getirisi Hesaplama</h4>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        
+        <div class="col-md-5 border-end">
+          <div class="mb-3">
+            <label for="amountInput" class="form-label">Tutar</label>
+            <input id="amountInput" type="number" class="form-control" [(ngModel)]="request.amount">
+          </div>
+          
+          <div class="mb-3">
+            <label for="currencyInput" class="form-label">Para Birimi</label>
+            <select id="currencyInput" class="form-select" [(ngModel)]="request.currencyCode">
+              <option value="TL">TL</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+            </select>
+          </div>
+          
+          <div class="mb-3">
+            <label for="termDaysInput" class="form-label">Vade (Gün)</label>
+            <input id="termDaysInput" type="number" class="form-control" [(ngModel)]="request.termDays">
+          </div>
+          
+          <button class="btn btn-primary w-100 mt-2" (click)="calculate()" [disabled]="isLoading()">
+            <span *ngIf="isLoading()" class="spinner-border spinner-border-sm me-2"></span>
+            Faiz Getirisini Hesapla
+          </button>
+          
+          <div *ngIf="errorMessage" class="alert alert-danger mt-3">
+            {{ errorMessage }}
+          </div>
+        </div>
+
+        <div class="col-md-7">
+          <div *ngIf="!result && !isLoading()" class="text-center text-muted mt-5">
+            <i class="fas fa-calculator fa-3x mb-3"></i>
+            <p>Faiz ve getiri miktarını görmek için "Hesapla" butonuna tıklayın.</p>
+          </div>
+
+          <div *ngIf="result" class="p-4 bg-light rounded border">
+            <h5 class="text-success mb-4 text-center">Hesaplama Sonucu</h5>
+            
+            <ul class="list-group list-group-flush mb-3">
+              <li class="list-group-item d-flex justify-content-between bg-transparent">
+                <span>Yıllık Faiz Oranı:</span>
+                <strong>%{{ result.InterestRate }}</strong>
+              </li>
+              <li class="list-group-item d-flex justify-content-between bg-transparent">
+                <span>Net Faiz Getirisi:</span>
+                <strong class="text-success">+{{ result.NetInterestAmount | currency:'TRY':'symbol-narrow':'1.2-2' }}</strong>
+              </li>
+              <li class="list-group-item d-flex justify-content-between bg-transparent border-bottom-0 pb-0">
+                <span class="fs-6 mt-1">Vade Sonu Toplam Tutar:</span>
+                <strong class="text-primary fs-4">{{ result.NetAmount | currency:'TRY':'symbol-narrow':'1.2-2' }}</strong>
+              </li>
+            </ul>
+
+            <hr>
+            <div class="d-flex justify-content-between text-muted small px-3">
+              <span>Stopaj Oranı: %{{ result.WithholdingRate }}</span>
+              <span>Stopaj Kesintisi: {{ result.WithholdingAmount | currency:'TRY':'symbol-narrow':'1.2-2' }}</span>
+            </div>
+
+            <div class="alert alert-info small mt-4" *ngIf="result.InformationMessage">
+              <i class="fas fa-info-circle me-1"></i> {{ result.InformationMessage }}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>

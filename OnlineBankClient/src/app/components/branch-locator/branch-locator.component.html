@@ -1,0 +1,56 @@
+<div class="container mt-5 mb-5">
+  <div class="card shadow border-0 rounded-4">
+    <div class="card-header text-white" style="background-color: #A90432;">
+      <h4 class="mb-0 py-2"><i class="bi bi-geo-alt-fill me-2"></i> Şube ve ATM Sorgulama</h4>
+    </div>
+    
+    <div class="card-body p-4 p-md-5 bg-light">
+      <div class="row mb-4 bg-white p-4 rounded shadow-sm">
+        <div class="col-md-6 mb-3 mb-md-0">
+          <label for="citySelect" class="form-label fw-bold">İl Seçiniz</label>
+          <select id="citySelect" class="form-select shadow-sm" [(ngModel)]="selectedCityCode" (change)="onCityChange()">
+            <option value="">-- Şehir Seçiniz --</option>
+            <option *ngFor="let city of cities" [value]="city.cityCode">{{ city.cityName }}</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label for="districtSelect" class="form-label fw-bold">İlçe Seçiniz</label>
+          <select id="districtSelect" class="form-select shadow-sm" [(ngModel)]="BankDistrictCode" (change)="onDistrictChange()" [disabled]="!selectedCityCode">
+            <option value="">-- İlçe Seçiniz --</option>
+            <option *ngFor="let district of districts" [value]="district.districtCode">{{ district.districtName }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div *ngIf="isLoadingBranches()" class="text-center my-5" style="color: #A90432;">
+        <div class="spinner-border" style="width: 3rem; height: 3rem;" aria-hidden="true"></div>
+        <div class="mt-2 fw-medium fs-5">Şubeler aranıyor...</div>
+      </div>
+
+      <div *ngIf="branches.length > 0 && !isLoadingBranches()" class="mt-4">
+        <h5 class="fw-bold border-bottom pb-2 mb-3" style="color: #A90432;">Bulunan Şubeler ({{branches.length}})</h5>
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+          <div class="col" *ngFor="let branch of branches">
+            <div class="card h-100 shadow-sm border-0 border-start border-4" style="border-color: #A90432 !important;">
+              <div class="card-body">
+                <h6 class="card-title fw-bold text-dark mb-1"><i class="bi bi-bank me-2 text-muted"></i>{{ branch.branchName || branch.BranchName }}</h6>
+                <p class="card-text small text-muted mb-0 mt-2">
+                  <i class="bi bi-upc-scan me-1"></i> Şube Kodu: <strong>{{ branch.branchCode || branch.BranchCode }}</strong>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="BankDistrictCode && branches.length === 0 && !isLoadingBranches()" class="alert alert-warning mt-4 shadow-sm border-0 d-flex align-items-center">
+        <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i> 
+        <div>
+          <strong>Şube Bulunamadı!</strong><br>
+          Seçilen ilçede şube veya ATM bulunmamaktadır. Lütfen başka bir ilçe deneyiniz.
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

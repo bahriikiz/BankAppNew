@@ -28,4 +28,8 @@ export class VakifbankService {
   getBranches(cityCode: string, bankDistrictCode: string): Observable<any> {
   return this.http.get(`${this.baseUrl}/cities/${cityCode}/districts/${bankDistrictCode}/branches`);
 }
+
+calculateDeposit(amount: number, currencyCode: string, depositType: number, campaignId: number, termDays: number): Observable<any> {
+    return this.http.get(`${this.baseUrl}/deposit/calculate?amount=${amount}&currencyCode=${currencyCode}&depositType=${depositType}&campaignId=${campaignId}&termDays=${termDays}`);
+  }
 }

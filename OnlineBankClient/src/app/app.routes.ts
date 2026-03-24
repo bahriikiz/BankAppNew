@@ -7,6 +7,8 @@ import { CreateAccountComponent } from './components/create-account/create-accou
 import { AccountDetailsComponent } from './components/account-details/account-details.component';
 import { MoneyTransferComponent } from './components/money-transfer/money-transfer.component';
 import { BankListComponent } from './components/bank-list/bank-list.component';
+import { DepositCalculatorComponent } from './components/deposit-calculator/deposit-calculator.component';
+import { BranchLocatorComponent } from './components/branch-locator/branch-locator.component';
 
 export const routes: Routes = [
   // Herkesi karşılayan ana sayfa
@@ -24,7 +26,11 @@ export const routes: Routes = [
   { path: 'account/:id', component: AccountDetailsComponent }, // Hesap detayları için dinamik rota
   { path: 'transfer', component: MoneyTransferComponent }, // Para transferi sayfası
   
-  { path: 'banks', component: BankListComponent }, // Bankalar ve Şubeler
+  { path: 'banks', component: BankListComponent }, // Bankalar 
+
+  { path: 'branch-locator', component: BranchLocatorComponent }, //Banka Şubeleri
+
+  { path: 'deposit-calculator', component: DepositCalculatorComponent }, // Mevduat Hesaplayıcı 
 
 
   { path: '**', redirectTo: '' }
