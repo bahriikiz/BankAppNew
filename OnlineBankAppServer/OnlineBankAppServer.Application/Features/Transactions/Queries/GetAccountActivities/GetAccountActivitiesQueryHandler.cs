@@ -11,19 +11,35 @@ internal sealed class GetAccountActivitiesQueryHandler(
     AppDbContext context,
     IVakifbankService vakifbankService) : IRequestHandler<GetAccountActivitiesQuery, List<BankTransaction>>
 {
+    // Performans için kültürü bir kere tanımlıyoruz
+    private static readonly CultureInfo TrCulture = new("tr-TR");
+
     public async Task<List<BankTransaction>> Handle(GetAccountActivitiesQuery request, CancellationToken cancellationToken)
     {
-        // 1. Hesabı bul
+        // 1. Hesabı Bul (Genel Exception yerine KeyNotFoundException)
         var account = await context.Accounts
-            .AsNoTracking() // Sadece okuma yaptığımız için performansı artırır
-            .FirstOrDefaultAsync(p => p.Id == request.AccountId, cancellationToken);
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == request.AccountId, cancellationToken)
+            ?? throw new KeyNotFoundException("Hesap bulunamadı!");
 
-        if (account is null)
-            throw new Exception("Hesap bulunamadı!");
+        // 2. Tarih Filtrelerini Belirle
+        (DateTime startDate, DateTime endDate) = DetermineDateRange(request.StartDate, request.EndDate);
 
-        // 2. TARİH FİLTRELERİ (Eğer UI'dan tarih gelmezse varsayılan olarak son 1 ayı getiririz)
-        DateTime endDate = request.EndDate ?? DateTime.Now;
-        DateTime startDate = request.StartDate ?? endDate.AddMonths(-1);
+        // 3. Hesap Türüne Göre Veriyi Çek (Açık Bankacılık vs Lokal)
+        if (!string.IsNullOrEmpty(account.RizaNo))
+        {
+            return await GetVakifbankTransactionsAsync(account, startDate, endDate, cancellationToken);
+        }
+
+        return await GetLocalTransactionsAsync(request.AccountId, startDate, endDate, cancellationToken);
+    }
+
+    // --- YARDIMCI (PRIVATE) METODLAR ---
+
+    private static (DateTime StartDate, DateTime EndDate) DetermineDateRange(DateTime? reqStartDate, DateTime? reqEndDate)
+    {
+        DateTime endDate = reqEndDate ?? DateTime.Now;
+        DateTime startDate = reqStartDate ?? endDate.AddMonths(-1);
 
         // VakıfBank "ACBH000134" hatası vermesin diye tarih aralığını maksimum 364 günle sınırlıyoruz.
         if ((endDate - startDate).TotalDays > 365)
@@ -31,60 +47,56 @@ internal sealed class GetAccountActivitiesQueryHandler(
             startDate = endDate.AddDays(-364);
         }
 
-        if (!string.IsNullOrEmpty(account.RizaNo))
+        return (startDate, endDate);
+    }
+
+    private async Task<List<BankTransaction>> GetVakifbankTransactionsAsync(Account account, DateTime startDate, DateTime endDate, CancellationToken cancellationToken)
+    {
+        string cleanIban = account.Iban.Replace(" ", "");
+        string accountNumber = cleanIban.Length >= 17 ? cleanIban.Substring(cleanIban.Length - 17) : cleanIban;
+
+        var apiResponse = await vakifbankService.GetAccountTransactionsAsync(
+            account.RizaNo!,
+            accountNumber,
+            startDate,
+            endDate,
+            cancellationToken);
+
+        var apiTransactions = new List<BankTransaction>();
+        var fetchedTransactions = apiResponse?.Data?.AccountTransactions;
+
+        if (fetchedTransactions == null)
+            return apiTransactions;
+
+        foreach (var t in fetchedTransactions)
         {
-            // IBAN'daki boşlukları temizle ve son 17 haneyi al (VakıfBank 17 hane ister)
-            string cleanIban = account.Iban.Replace(" ", "");
-            string accountNumber = cleanIban.Length >= 17 ? cleanIban.Substring(cleanIban.Length - 17) : cleanIban;
+            decimal.TryParse(t.Amount?.Replace(".", ","), NumberStyles.Any, TrCulture, out decimal amount);
 
-            // API'den verileri getir
-            var apiResponse = await vakifbankService.GetAccountTransactionsAsync(
-                account.RizaNo,
-                accountNumber,
-                startDate,
-                endDate,
-                cancellationToken);
+            if (t.TransactionType == "2" && amount > 0)
+                amount = -amount;
 
-            var apiTransactions = new List<BankTransaction>();
+            DateTime.TryParse(t.TransactionDate, out DateTime transactionDate);
 
-            if (apiResponse?.Data?.AccountTransactions != null)
+            apiTransactions.Add(new BankTransaction
             {
-                foreach (var t in apiResponse.Data.AccountTransactions)
-                {
-                    // Tutarı ondalıklı olarak string'den decimal'a çevir
-                    decimal.TryParse(t.Amount?.Replace(".", ","), NumberStyles.Any, new CultureInfo("tr-TR"), out decimal amount);
-
-                    // API'den gelen miktar bazen eksi (-) olmayabilir, TransactionType "2" ise eksiye çevir
-                    if (t.TransactionType == "2" && amount > 0)
-                        amount = -amount;
-
-                    // Tarihi parse et
-                    DateTime.TryParse(t.TransactionDate, out DateTime transactionDate);
-
-                    apiTransactions.Add(new BankTransaction
-                    {
-                        AccountId = account.Id,
-                        Amount = amount,
-                        Description = t.Description ?? "Açıklama Yok",
-                        TransactionDate = transactionDate,
-                        CreatedDate = transactionDate,
-                        TransactionReference = t.TransactionId
-                    });
-                }
-            }
-
-            // Tarihe göre en yeniden eskiye doğru sıralayıp frontend'e gönderiyoruz
-            return apiTransactions.OrderByDescending(x => x.TransactionDate).ToList();
+                AccountId = account.Id,
+                Amount = amount,
+                Description = t.Description ?? "Açıklama Yok",
+                TransactionDate = transactionDate,
+                CreatedDate = transactionDate,
+                TransactionReference = t.TransactionId
+            });
         }
 
-        // 4. EĞER BİZİM LOKAL BANKAMIZIN (TEST) HESABIYSA KENDİ DB'MİZDEN OKU
-        var localTransactions = await context.BankTransactions
+        return apiTransactions.OrderByDescending(x => x.TransactionDate).ToList();
+    }
+
+    private async Task<List<BankTransaction>> GetLocalTransactionsAsync(int accountId, DateTime startDate, DateTime endDate, CancellationToken cancellationToken)
+    {
+        return await context.BankTransactions
             .AsNoTracking()
-            // Hem hesaba hem de girilen tarih aralığına göre filtrele
-            .Where(p => p.AccountId == request.AccountId && p.TransactionDate >= startDate && p.TransactionDate <= endDate)
+            .Where(p => p.AccountId == accountId && p.TransactionDate >= startDate && p.TransactionDate <= endDate)
             .OrderByDescending(p => p.TransactionDate)
             .ToListAsync(cancellationToken);
-
-        return localTransactions;
     }
 }

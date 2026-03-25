@@ -12,54 +12,71 @@ namespace OnlineBankAppServer.Application.Features.Accounts.Queries.GetByUserId;
 internal sealed class GetAccountByUserIdQueryHandler(
     AppDbContext context,
     IHttpContextAccessor httpContextAccessor,
-    IVakifbankService vakifbankService) : IRequestHandler<GetAccountByUserIdQuery, List<Account>> 
+    IVakifbankService vakifbankService) : IRequestHandler<GetAccountByUserIdQuery, List<Account>>
 {
+    // Performans için kültürü sadece bir kere (static olarak) tanımlıyoruz
+    private static readonly CultureInfo TrCulture = new("tr-TR");
+
     public async Task<List<Account>> Handle(GetAccountByUserIdQuery request, CancellationToken cancellationToken)
     {
         var userIdClaim = httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier);
-        if (userIdClaim is null) throw new Exception("Kullanıcı bulunamadı. Lütfen giriş yapınız.");
+
+        // Genel Exception yerine profesyonel yetki hatası fırlatıyoruz
+        if (userIdClaim is null)
+            throw new UnauthorizedAccessException("Kullanıcı bulunamadı. Lütfen giriş yapınız.");
 
         int userId = int.Parse(userIdClaim.Value);
 
-        // Hesapları veritabanından çek (AsNoTracking ile daha hızlı)
+        // Hesapları veritabanından çek 
         var accounts = await context.Accounts
             .AsNoTracking()
             .Where(x => x.UserId == userId)
             .Include(x => x.Bank)
             .ToListAsync(cancellationToken);
 
-        // YENİ EKLENEN KISIM: Her bir hesap için döngüye girip VakıfBank hesabıysa canlı bakiye çekiyoruz!
-        foreach (var account in accounts)
-        {
-            if (!string.IsNullOrEmpty(account.RizaNo))
-            {
-                try
-                {
-                    string cleanIban = account.Iban.Replace(" ", "");
-                    string accountNumber = cleanIban.Length >= 17 ? cleanIban.Substring(cleanIban.Length - 17) : cleanIban;
-
-                    // VakıfBank'tan canlı hesap detaylarını çekiyoruz
-                    var detailResponse = await vakifbankService.GetAccountDetailAsync(account.RizaNo, accountNumber, cancellationToken);
-
-                    if (detailResponse?.Data?.AccountInfo != null)
-                    {
-                        // API'den gelen canlı bakiyeyi decimal'a çevirip mevcut yerel bakiyenin üzerine yazıyoruz
-                        if (decimal.TryParse(detailResponse.Data.AccountInfo.Balance?.Replace(".", ","), NumberStyles.Any, new CultureInfo("tr-TR"), out decimal liveBalance))
-                        {
-                            account.Balance = liveBalance;
-                        }
-
-                        // Arayüzde VakıfBank'tan gelen "TL" yerine modern "TRY" görünmesi için düzeltme
-                        account.CurrencyType = detailResponse.Data.AccountInfo.CurrencyCode == "TL" ? "TRY" : (detailResponse.Data.AccountInfo.CurrencyCode ?? account.CurrencyType);
-                    }
-                }
-                catch
-                {
-                
-                }
-            }
-        }
+        // Canlı bakiyeleri güncelle 
+        await EnrichWithLiveBalancesAsync(accounts, cancellationToken);
 
         return accounts;
+    }
+
+    private async Task EnrichWithLiveBalancesAsync(List<Account> accounts, CancellationToken cancellationToken)
+    {
+        // Rıza no olanları listele
+        var openBankingAccounts = accounts.Where(a => !string.IsNullOrEmpty(a.RizaNo));
+
+        foreach (var account in openBankingAccounts)
+        {
+            await UpdateLiveBalanceAsync(account, cancellationToken);
+        }
+    }
+
+    private async Task UpdateLiveBalanceAsync(Account account, CancellationToken cancellationToken)
+    {
+        try
+        {
+            string cleanIban = account.Iban.Replace(" ", "");
+            string accountNumber = cleanIban.Length >= 17 ? cleanIban.Substring(cleanIban.Length - 17) : cleanIban;
+
+            // VakıfBank'tan canlı hesap detaylarını çekiyoruz
+            var detailResponse = await vakifbankService.GetAccountDetailAsync(account.RizaNo!, accountNumber, cancellationToken);
+
+            var accountInfo = detailResponse?.Data?.AccountInfo;
+            if (accountInfo != null)
+            {
+                // API'den gelen canlı bakiyeyi decimal'a çevirip mevcut yerel bakiyenin üzerine yazıyoruz
+                if (decimal.TryParse(accountInfo.Balance?.Replace(".", ","), NumberStyles.Any, TrCulture, out decimal liveBalance))
+                {
+                    account.Balance = liveBalance;
+                }
+
+                // Arayüzde VakıfBank'tan gelen "TL" yerine modern "TRY" görünmesi için düzeltme
+                account.CurrencyType = accountInfo.CurrencyCode == "TL" ? "TRY" : (accountInfo.CurrencyCode ?? account.CurrencyType);
+            }
+        }
+        catch
+        {
+            // API çökerse sistem patlamaz, kendi veritabanımızdaki bilgileri kullanır.
+        }
     }
 }

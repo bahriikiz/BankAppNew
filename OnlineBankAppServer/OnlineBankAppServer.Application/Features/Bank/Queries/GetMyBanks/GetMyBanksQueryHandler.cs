@@ -15,7 +15,7 @@ internal sealed class GetMyBanksQueryHandler(
     {
         // Giriş yapan kullanıcının ID'sini bul
         var userIdClaim = httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier);
-        if (userIdClaim is null) throw new Exception("Kullanıcı bulunamadı.");
+        if (userIdClaim is null) throw new UnauthorizedAccessException("Kullanıcı bulunamadı.");
         int userId = int.Parse(userIdClaim.Value);
 
         // Sadece kullanıcının hesabı olan bankaları getir

@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using OnlineBankAppServer.Domain.Entities;
 using OnlineBankAppServer.Persistance;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -15,19 +16,18 @@ internal sealed class GetAccountStatementPdfQueryHandler(
 {
     public async Task<byte[]> Handle(GetAccountStatementPdfQuery request, CancellationToken cancellationToken)
     {
-        // 1. Kullanıcıyı ve Hesabı Bul
         var userIdClaim = httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier);
-        if (userIdClaim is null) throw new Exception("Kullanıcı bulunamadı.");
+        if (userIdClaim is null)
+            throw new UnauthorizedAccessException("Kullanıcı bulunamadı. Lütfen giriş yapınız.");
+
         int userId = int.Parse(userIdClaim.Value);
 
         var account = await context.Accounts
             .Include(a => a.User)
             .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == request.AccountId && x.UserId == userId, cancellationToken);
+            .FirstOrDefaultAsync(x => x.Id == request.AccountId && x.UserId == userId, cancellationToken)
+            ?? throw new KeyNotFoundException("Hesap bulunamadı veya bu işlem için yetkiniz yok.");
 
-        if (account is null) throw new Exception("Hesap bulunamadı veya yetkiniz yok.");
-
-        // 2. İşlem Geçmişini Çek (Son 50 işlem)
         var transactions = await context.BankTransactions
             .AsNoTracking()
             .Where(x => x.AccountId == account.Id || x.TargetIban == account.Iban)
@@ -35,9 +35,8 @@ internal sealed class GetAccountStatementPdfQueryHandler(
             .Take(50)
             .ToListAsync(cancellationToken);
 
-        string currency = account.CurrencyType =="1" ? "TRY" : "USD";
+        string currency = account.CurrencyType == "1" ? "TRY" : "USD";
 
-        // 3. PDF OLUŞTURMA (QuestPDF)
         var document = Document.Create(container =>
         {
             container.Page(page =>
@@ -47,13 +46,9 @@ internal sealed class GetAccountStatementPdfQueryHandler(
                 page.PageColor(Colors.White);
                 page.DefaultTextStyle(x => x.FontSize(11).FontFamily(Fonts.Arial));
 
-                // BAŞLIK KISMI
-                page.Header().Element(ComposeHeader);
+                page.Header().Element(c => ComposeHeader(c, account, currency));
+                page.Content().Element(c => ComposeContent(c, account, transactions));
 
-                // İÇERİK KISMI (Tablo)
-                page.Content().Element(ComposeContent);
-
-                // ALT BİLGİ KISMI (Sayfa numarası)
                 page.Footer().AlignCenter().Text(x =>
                 {
                     x.CurrentPageNumber();
@@ -61,80 +56,76 @@ internal sealed class GetAccountStatementPdfQueryHandler(
                     x.TotalPages();
                 });
             });
-
-            // Başlık Tasarımı
-            void ComposeHeader(IContainer container)
-            {
-                container.Row(row =>
-                {
-                    row.RelativeItem().Column(column =>
-                    {
-                        column.Item().Text("İKİZ BANK A.Ş.").FontSize(20).SemiBold().FontColor(Colors.Blue.Darken2);
-                        column.Item().Text("Resmi Hesap Ekstresi").FontSize(14).FontColor(Colors.Grey.Medium);
-                        column.Item().PaddingTop(10).Text($"Sayın {account.User!.FirstName} {account.User.LastName}").SemiBold();
-                        column.Item().Text($"IBAN: {account.Iban}");
-                        column.Item().Text($"Güncel Bakiye: {account.Balance:N2} {currency}").SemiBold();
-                    });
-
-                    row.ConstantItem(100).AlignRight().Text($"{DateTime.Now:dd.MM.yyyy}");
-                });
-            }
-
-            // İçerik Tasarımı (İşlem Tablosu)
-            void ComposeContent(IContainer container)
-            {
-                container.PaddingVertical(1, QuestPDF.Infrastructure.Unit.Centimetre).Column(column =>
-                {
-                    column.Spacing(5);
-
-                    column.Item().Table(table =>
-                    {
-                        // Sütun Genişlikleri
-                        table.ColumnsDefinition(columns =>
-                        {
-                            columns.ConstantColumn(100); // Tarih
-                            columns.RelativeColumn();    // Açıklama
-                            columns.ConstantColumn(80);  // Tutar
-                            columns.ConstantColumn(70);  // Tür
-                        });
-
-                        // Tablo Başlıkları
-                        table.Header(header =>
-                        {
-                            header.Cell().Element(CellStyle).Text("Tarih");
-                            header.Cell().Element(CellStyle).Text("Açıklama");
-                            header.Cell().Element(CellStyle).AlignRight().Text("Tutar");
-                            header.Cell().Element(CellStyle).AlignCenter().Text("Tür");
-
-                            static IContainer CellStyle(IContainer container)
-                            {
-                                return container.DefaultTextStyle(x => x.SemiBold()).PaddingVertical(5).BorderBottom(1).BorderColor(Colors.Black);
-                            }
-                        });
-
-                        // Tablo İçeriği (Döngü)
-                        foreach (var tx in transactions)
-                        {
-                            bool isOutgoing = tx.AccountId == account.Id;
-                            string txType = isOutgoing ? "Giden" : "Gelen";
-                            var color = isOutgoing ? Colors.Red.Medium : Colors.Green.Medium;
-                            string sign = isOutgoing ? "-" : "+";
-
-                            table.Cell().Element(CellStyle).Text(tx.TransactionDate.AddHours(3).ToString("dd.MM.yyyy HH:mm"));
-                            table.Cell().Element(CellStyle).Text(tx.Description ?? "Transfer");
-                            table.Cell().Element(CellStyle).AlignRight().Text($"{sign}{tx.Amount:N2}").FontColor(color);
-                            table.Cell().Element(CellStyle).AlignCenter().Text(txType).FontColor(color);
-
-                            static IContainer CellStyle(IContainer container)
-                            {
-                                return container.BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5);
-                            }
-                        }
-                    });
-                });
-            }
         });
 
         return document.GeneratePdf();
+    }
+
+    private static void ComposeHeader(IContainer container, Account account, string currency)
+    {
+        container.Row(row =>
+        {
+            row.RelativeItem().Column(column =>
+            {
+                column.Item().Text("İKİZ BANK A.Ş.").FontSize(20).SemiBold().FontColor(Colors.Blue.Darken2);
+                column.Item().Text("Resmi Hesap Ekstresi").FontSize(14).FontColor(Colors.Grey.Medium);
+                column.Item().PaddingTop(10).Text($"Sayın {account.User!.FirstName} {account.User.LastName}").SemiBold();
+                column.Item().Text($"IBAN: {account.Iban}");
+                column.Item().Text($"Güncel Bakiye: {account.Balance:N2} {currency}").SemiBold();
+            });
+
+            row.ConstantItem(100).AlignRight().Text($"{DateTime.Now:dd.MM.yyyy}");
+        });
+    }
+
+    private static void ComposeContent(IContainer container, Account account, List<BankTransaction> transactions)
+    {
+        container.PaddingVertical(1, QuestPDF.Infrastructure.Unit.Centimetre).Column(column =>
+        {
+            column.Spacing(5);
+            column.Item().Table(table =>
+            {
+                table.ColumnsDefinition(columns =>
+                {
+                    columns.ConstantColumn(100);
+                    columns.RelativeColumn();
+                    columns.ConstantColumn(80);
+                    columns.ConstantColumn(70);
+                });
+
+                table.Header(ComposeTableHeader);
+
+                foreach (var tx in transactions)
+                {
+                    bool isOutgoing = tx.AccountId == account.Id;
+                    string txType = isOutgoing ? "Giden" : "Gelen";
+                    var color = isOutgoing ? Colors.Red.Medium : Colors.Green.Medium;
+                    string sign = isOutgoing ? "-" : "+";
+
+                    table.Cell().Element(CellStyle).Text(tx.TransactionDate.AddHours(3).ToString("dd.MM.yyyy HH:mm"));
+                    table.Cell().Element(CellStyle).Text(tx.Description ?? "Transfer");
+                    table.Cell().Element(CellStyle).AlignRight().Text($"{sign}{tx.Amount:N2}").FontColor(color);
+                    table.Cell().Element(CellStyle).AlignCenter().Text(txType).FontColor(color);
+                }
+            });
+        });
+    }
+
+    private static void ComposeTableHeader(TableCellDescriptor header)
+    {
+        header.Cell().Element(HeaderCellStyle).Text("Tarih");
+        header.Cell().Element(HeaderCellStyle).Text("Açıklama");
+        header.Cell().Element(HeaderCellStyle).AlignRight().Text("Tutar");
+        header.Cell().Element(HeaderCellStyle).AlignCenter().Text("Tür");
+    }
+
+    private static IContainer HeaderCellStyle(IContainer container)
+    {
+        return container.DefaultTextStyle(x => x.SemiBold()).PaddingVertical(5).BorderBottom(1).BorderColor(Colors.Black);
+    }
+
+    private static IContainer CellStyle(IContainer container)
+    {
+        return container.BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5);
     }
 }

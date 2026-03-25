@@ -44,8 +44,7 @@ internal sealed class AskAICommandHandler(IConfiguration configuration) : IReque
 
         if (!response.IsSuccessStatusCode)
         {
-            if (string.IsNullOrEmpty(apiKey)) throw new InvalidOperationException("Yapay zeka servisi şu an meşgul, lütfen daha sonra tekrar deneyin.");
- 
+            throw new InvalidOperationException("Yapay zeka servisi şu an meşgul, lütfen daha sonra tekrar deneyin.");
         }
 
         // 5. Cevabı Çözümle (Parse)

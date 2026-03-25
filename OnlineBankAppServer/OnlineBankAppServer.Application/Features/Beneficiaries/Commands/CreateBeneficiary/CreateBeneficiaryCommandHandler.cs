@@ -13,15 +13,14 @@ internal sealed class CreateBeneficiaryCommandHandler(
     public async Task<string> Handle(CreateBeneficiaryCommand request, CancellationToken cancellationToken)
     {
         // 1. Kullanıcıyı Bul
-        var userIdClaim = httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier);
-        if (userIdClaim is null) throw new Exception("Kullanıcı bulunamadı.");
+        Claim userIdClaim = (httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)) ?? throw new UnauthorizedAccessException("Kullanıcı bulunamadı.");
         int userId = int.Parse(userIdClaim.Value);
 
         // 2. Aynı IBAN daha önce eklenmiş mi? 
         bool isExists = context.Beneficiaries.Any(x => x.UserId == userId && x.Iban == request.Iban);
         if (isExists)
         {
-            throw new Exception("Bu IBAN zaten rehberinizde kayıtlı.");
+            throw new InvalidOperationException("Bu IBAN zaten rehberinizde kayıtlı.");
         }
 
         // 3. Kaydı Oluştur

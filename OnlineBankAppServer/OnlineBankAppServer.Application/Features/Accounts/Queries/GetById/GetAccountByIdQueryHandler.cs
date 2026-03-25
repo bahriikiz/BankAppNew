@@ -63,7 +63,7 @@ namespace OnlineBankAppServer.Application.Features.Accounts.Queries.GetById
             return new AccountDetailDto(account.Id, account.Iban, liveBalance, liveCurrency, transactions.OrderByDescending(x => x.Date).ToList());
         }
 
-        private List<AccountTransactionDto> MapVakifbankTransactions(IEnumerable<dynamic> apiTransactions)
+        private static List<AccountTransactionDto> MapVakifbankTransactions(IEnumerable<dynamic> apiTransactions)
         {
             return apiTransactions.Select(t =>
             {

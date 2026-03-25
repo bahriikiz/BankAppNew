@@ -13,7 +13,8 @@ internal sealed class GetMyProfileQueryHandler(
     public async Task<GetMyProfileResponse> Handle(GetMyProfileQuery request, CancellationToken cancellationToken)
     {
         var userIdClaim = (httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)
-                          ?? httpContextAccessor.HttpContext?.User.FindFirst("sub")) ?? throw new Exception("Kimlik dogrulanamadı.");
+                   ?? httpContextAccessor.HttpContext?.User.FindFirst("sub"))
+                   ?? throw new UnauthorizedAccessException("Kimlik doğrulanamadı.");
         int userId = int.Parse(userIdClaim.Value);
 
         var user = await context.Users
@@ -21,7 +22,7 @@ internal sealed class GetMyProfileQueryHandler(
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
         return user is null
-            ? throw new Exception("Kullanıcı bulunamadı.")
+            ? throw new KeyNotFoundException("Kullanıcı bulunamadı.")
             : new GetMyProfileResponse(
             user.FirstName,
             user.LastName,
