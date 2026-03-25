@@ -25,6 +25,7 @@ internal sealed class CreateAccountCommandHandler(
 
         StringBuilder ibanBuilder = new StringBuilder();
 
+
         for (int i = 0; i < 24; i++)
         {
             ibanBuilder.Append(random.Next(0, 10));
