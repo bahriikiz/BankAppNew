@@ -11,7 +11,7 @@ internal sealed class AskAICommandHandler(IConfiguration configuration) : IReque
     {
         // 1. API Anahtarını al
         string? apiKey = configuration["Gemini:ApiKey"];
-        if (string.IsNullOrEmpty(apiKey)) throw new Exception("Gemini API Key bulunamadı! Lütfen appsettings.json'u kontrol edin.");
+        if (string.IsNullOrEmpty(apiKey)) throw new InvalidOperationException("Gemini API Key bulunamadı! Lütfen User Secrets veya appsettings.json yapılandırmasını kontrol edin.");
 
         string url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
 
@@ -44,7 +44,8 @@ internal sealed class AskAICommandHandler(IConfiguration configuration) : IReque
 
         if (!response.IsSuccessStatusCode)
         {
-            throw new Exception("Yapay zeka servisi şu an meşgul, lütfen daha sonra tekrar deneyin.");
+            if (string.IsNullOrEmpty(apiKey)) throw new InvalidOperationException("Yapay zeka servisi şu an meşgul, lütfen daha sonra tekrar deneyin.");
+ 
         }
 
         // 5. Cevabı Çözümle (Parse)

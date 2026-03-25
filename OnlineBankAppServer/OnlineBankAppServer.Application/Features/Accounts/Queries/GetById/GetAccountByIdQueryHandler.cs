@@ -2,152 +2,115 @@
 using Microsoft.EntityFrameworkCore;
 using OnlineBankAppServer.Application.Abstractions;
 using OnlineBankAppServer.Application.DTOs;
+using OnlineBankAppServer.Application.Features.Accounts.Queries.GetById;
+using OnlineBankAppServer.Domain.Entities;
 using OnlineBankAppServer.Persistance;
 using System.Globalization;
-
-namespace OnlineBankAppServer.Application.Features.Accounts.Queries.GetById;
 
 internal sealed class GetAccountByIdQueryHandler(
     AppDbContext context,
     IVakifbankService vakifbankService) : IRequestHandler<GetAccountByIdQuery, AccountDetailDto>
 {
+    private static readonly CultureInfo TrCulture = new("tr-TR");
+
     public async Task<AccountDetailDto> Handle(GetAccountByIdQuery request, CancellationToken cancellationToken)
     {
-        // 1. Hesabı Bul
+        // 1. Hesabı Bul (Spesifik Exception ile)
         var account = await context.Accounts
             .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == request.AccountId && x.UserId == request.UserId, cancellationToken);
+            .FirstOrDefaultAsync(x => x.Id == request.AccountId && x.UserId == request.UserId, cancellationToken)
+            ?? throw new KeyNotFoundException("Hesap bulunamadı veya bu işlem için yetkiniz yok!");
 
-        if (account is null)
-        {
-            throw new Exception("Hesap bulunamadı veya bu işlem için yetkiniz yok!");
-        }
-
-        var allTransactions = new List<AccountTransactionDto>();
-
-        // 2. EĞER HESAP VAKIFBANK HESABIYSA (CANLI VERİ ÇEK)
+        // 2. Karar Mekanizması: Vakıfbank mı yoksa Lokal mi?
         if (!string.IsNullOrEmpty(account.RizaNo))
         {
-            string cleanIban = account.Iban.Replace(" ", "");
-            string accountNumber = cleanIban.Length >= 17 ? cleanIban.Substring(cleanIban.Length - 17) : cleanIban;
-
-            // Varsayılan değerler
-            decimal liveBalance = account.Balance;
-            string liveCurrency = account.CurrencyType ?? "TRY";
-
-            try
-            {
-                // --- A) CANLI HESAP BAKİYESİNİ ÇEK ---
-                var detailResponse = await vakifbankService.GetAccountDetailAsync(account.RizaNo, accountNumber, cancellationToken);
-
-                if (detailResponse?.Data?.AccountInfo != null)
-                {
-                    decimal.TryParse(detailResponse.Data.AccountInfo.Balance?.Replace(".", ","), NumberStyles.Any, new CultureInfo("tr-TR"), out liveBalance);
-                    liveCurrency = detailResponse.Data.AccountInfo.CurrencyCode == "TL" ? "TRY" : (detailResponse.Data.AccountInfo.CurrencyCode ?? "TRY");
-                }
-
-                // --- B) SON 1 AYLIK HESAP HAREKETLERİNİ ÇEK ---
-                DateTime endDate = DateTime.Now;
-                DateTime startDate = endDate.AddMonths(-1);
-
-                var txResponse = await vakifbankService.GetAccountTransactionsAsync(
-                    account.RizaNo,
-                    accountNumber,
-                    startDate,
-                    endDate,
-                    cancellationToken);
-
-                if (txResponse?.Data?.AccountTransactions != null)
-                {
-                    foreach (var t in txResponse.Data.AccountTransactions)
-                    {
-                        decimal.TryParse(t.Amount?.Replace(".", ","), NumberStyles.Any, new CultureInfo("tr-TR"), out decimal amount);
-                        string type = t.TransactionType == "1" ? "Gelen Para" : "Giden Para";
-                        DateTime.TryParse(t.TransactionDate, out DateTime transactionDate);
-
-                        allTransactions.Add(new AccountTransactionDto(
-                            amount,
-                            t.Description ?? "VakıfBank İşlemi",
-                            transactionDate,
-                            transactionDate.ToString("dd.MM.yyyy HH:mm"),
-                            type,
-                            "Açık Bankacılık",
-                            t.TransactionId // YENİ: DEKONT REFERANSI EKLENDİ
-                        ));
-                    }
-                }
-            }
-            catch
-            {
-                // API çökerse sistem patlamaz, sessizce kendi veritabanımızdaki bilgileri kullanır.
-            }
-
-            allTransactions = allTransactions.OrderByDescending(x => x.Date).ToList();
-
-            // CANLI BAKİYE VE LİSTE İLE DÖNÜŞ YAP
-            return new AccountDetailDto(
-                account.Id,
-                account.Iban,
-                liveBalance,
-                liveCurrency,
-                allTransactions
-            );
+            return await GetVakifbankAccountDetailAsync(account, cancellationToken);
         }
 
-        // 3. EĞER LOKAL HESAP İSE KENDİ VERİTABANIMIZDAN ÇEK (Eski Mantık)
+        return await GetLocalAccountDetailAsync(account, cancellationToken);
+    }
 
-        // Giden Paralar (Benim gönderdiklerim)
-        var outgoingTransactions = await context.BankTransactions
+    private async Task<AccountDetailDto> GetVakifbankAccountDetailAsync(Account account, CancellationToken cancellationToken)
+    {
+        string cleanIban = account.Iban.Replace(" ", "");
+        string accountNumber = cleanIban.Length >= 17 ? cleanIban.Substring(cleanIban.Length - 17) : cleanIban;
+
+        decimal liveBalance = account.Balance;
+        string liveCurrency = account.CurrencyType ?? "TRY";
+        var transactions = new List<AccountTransactionDto>();
+
+        try
+        {
+            // A) Canlı Bakiye
+            var detail = await vakifbankService.GetAccountDetailAsync(account.RizaNo, accountNumber, cancellationToken);
+            if (detail?.Data?.AccountInfo != null)
+            {
+                decimal.TryParse(detail.Data.AccountInfo.Balance?.Replace(".", ","), NumberStyles.Any, TrCulture, out liveBalance);
+                liveCurrency = detail.Data.AccountInfo.CurrencyCode == "TL" ? "TRY" : (detail.Data.AccountInfo.CurrencyCode ?? "TRY");
+            }
+
+            // B) Canlı Hareketler
+            var txResponse = await vakifbankService.GetAccountTransactionsAsync(account.RizaNo, accountNumber, DateTime.Now.AddMonths(-1), DateTime.Now, cancellationToken);
+            if (txResponse?.Data?.AccountTransactions != null)
+            {
+                transactions = MapVakifbankTransactions(txResponse.Data.AccountTransactions);
+            }
+        }
+        catch { /* API Hatasında lokal verilerle devam et */ }
+
+        return new AccountDetailDto(account.Id, account.Iban, liveBalance, liveCurrency, transactions.OrderByDescending(x => x.Date).ToList());
+    }
+
+    private List<AccountTransactionDto> MapVakifbankTransactions(IEnumerable<dynamic> apiTransactions)
+    {
+        return apiTransactions.Select(t =>
+        {
+            decimal.TryParse(t.Amount?.Replace(".", ","), NumberStyles.Any, TrCulture, out decimal amount);
+            DateTime.TryParse(t.TransactionDate, out DateTime transactionDate);
+            return new AccountTransactionDto(
+                amount,
+                t.Description ?? "VakıfBank İşlemi",
+                transactionDate,
+                transactionDate.ToString("dd.MM.yyyy HH:mm"),
+                t.TransactionType == "1" ? "Gelen Para" : "Giden Para",
+                "Açık Bankacılık",
+                t.TransactionId);
+        }).ToList();
+    }
+
+    private async Task<AccountDetailDto> GetLocalAccountDetailAsync(Account account, CancellationToken cancellationToken)
+    {
+        // Giden Paralar
+        var outgoing = await context.BankTransactions
             .AsNoTracking()
             .Where(x => x.AccountId == account.Id)
             .Select(x => new AccountTransactionDto(
-                x.Amount,
-                x.Description ?? "Transfer",
-                x.TransactionDate,
+                x.Amount, x.Description ?? "Transfer", x.TransactionDate,
                 x.TransactionDate.AddHours(3).ToString("dd.MM.yyyy HH:mm"),
-                "Giden Para",
-                x.TargetIban ?? "Bilinmiyor",
-                null // Lokal işlemlerin dekont referansı yok
-            ))
+                "Giden Para", x.TargetIban ?? "Bilinmiyor", null))
             .ToListAsync(cancellationToken);
 
-        // Gelen Paralar (Bana gelenler)
-        var incomingTransactionsRaw = await context.BankTransactions
+        // Gelen Paralar ve Gönderen Bilgisi
+        var incomingRaw = await context.BankTransactions
             .AsNoTracking()
             .Where(x => x.TargetIban == account.Iban)
             .ToListAsync(cancellationToken);
 
-        var senderAccountIds = incomingTransactionsRaw.Select(x => x.AccountId).Distinct().ToList();
-
+        var senderIds = incomingRaw.Select(x => x.AccountId).Distinct().ToList();
         var senderInfo = await context.Accounts
             .AsNoTracking()
             .Include(x => x.User)
-            .Where(x => senderAccountIds.Contains(x.Id))
+            .Where(x => senderIds.Contains(x.Id))
             .ToDictionaryAsync(k => k.Id, v => $"{v.User!.FirstName} {v.User.LastName}", cancellationToken);
 
-        var incomingTransactions = incomingTransactionsRaw.Select(x => new AccountTransactionDto(
-            x.Amount,
-            x.Description ?? "Transfer",
-            x.TransactionDate,
+        var incoming = incomingRaw.Select(x => new AccountTransactionDto(
+            x.Amount, x.Description ?? "Transfer", x.TransactionDate,
             x.TransactionDate.AddHours(3).ToString("dd.MM.yyyy HH:mm"),
             "Gelen Para",
             senderInfo.TryGetValue(x.AccountId, out var name) ? name : $"Gönderen ID: {x.AccountId}",
-            null // Lokal işlemlerin dekont referansı yok
-        )).ToList();
+            null)).ToList();
 
-        // 4. Listeleri Birleştir ve Sırala (Yeniden eskiye)
-        allTransactions = outgoingTransactions
-            .Concat(incomingTransactions)
-            .OrderByDescending(x => x.Date)
-            .ToList();
-
-        // 5. Sonuç (Lokal hesap bakiyesiyle dönüş)
-        return new AccountDetailDto(
-            account.Id,
-            account.Iban,
-            account.Balance,
-            account.CurrencyType ?? "TRY",
-            allTransactions
-        );
+        var allTransactions = outgoing.Concat(incoming).OrderByDescending(x => x.Date).ToList();
+        return new AccountDetailDto(account.Id, account.Iban, account.Balance, account.CurrencyType ?? "TRY", allTransactions);
     }
 }

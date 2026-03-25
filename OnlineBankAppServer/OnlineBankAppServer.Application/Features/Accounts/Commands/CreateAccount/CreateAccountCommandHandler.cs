@@ -1,4 +1,5 @@
 ﻿using MediatR;
+using System.Text;
 using Microsoft.AspNetCore.Http;
 using OnlineBankAppServer.Domain.Entities;
 using OnlineBankAppServer.Persistance;
@@ -13,25 +14,23 @@ internal sealed class CreateAccountCommandHandler(
     public async Task<string> Handle(CreateAccountCommand request, CancellationToken cancellationToken)
     {
         // JWT Token'dan kullanıcı kimliğini alıyoruz
-        var userIdClaim = httpContextAccessor.HttpContext?.User.FindFirst("UserId")
+        var userIdClaim = (httpContextAccessor.HttpContext?.User.FindFirst("UserId")
                           ?? httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)
-                          ?? httpContextAccessor.HttpContext?.User.FindFirst("sub");
-
-        if (userIdClaim is null) throw new Exception("Kullanıcı bulunamadı.");
+                          ?? httpContextAccessor.HttpContext?.User.FindFirst("sub")) ?? throw new UnauthorizedAccessException("Kullanıcı bulunamadı.");
         int userId = int.Parse(userIdClaim.Value);
 
+        // Random iban üretme
         Random random = new Random();
         string ibanNumbers = string.Empty;
 
-        // 24 haneli rastgele IBAN numarası üretimi
+        StringBuilder ibanBuilder = new StringBuilder();
+
         for (int i = 0; i < 24; i++)
         {
-            ibanNumbers += random.Next(0, 10).ToString();
+            ibanBuilder.Append(random.Next(0, 10));
         }
 
-        string newIban = "TR" + ibanNumbers;
-
-        // Gerçekçi bir hesap numarası için IBAN'ın son 16 hanesini 
+        string newIban = "TR" + ibanBuilder.ToString();
         string newAccountNumber = ibanNumbers.Substring(8, 16);
 
         var account = new Account

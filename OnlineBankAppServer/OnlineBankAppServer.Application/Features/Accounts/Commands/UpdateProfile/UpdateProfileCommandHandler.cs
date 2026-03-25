@@ -13,10 +13,13 @@ internal sealed class UpdateProfileCommandHandler(
     public async Task<string> Handle(UpdateProfileCommand request, CancellationToken cancellationToken)
     {
         var userIdClaim = (httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)
-                          ?? httpContextAccessor.HttpContext?.User.FindFirst("sub")) ?? throw new Exception("Kimlik doğrulanamadı.");
+                      ?? httpContextAccessor.HttpContext?.User.FindFirst("sub")) 
+                      ?? throw new UnauthorizedAccessException("Kimlik doğrulanamadı.");
         int userId = int.Parse(userIdClaim.Value);
 
-        var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken) ?? throw new Exception("Kullanıcı bulunamadı.");
+        var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken)
+           ?? throw new KeyNotFoundException("Kullanıcı bulunamadı.");
+
         user.PhoneNumber = request.PhoneNumber;
         user.City = request.City;
         user.District = request.District;

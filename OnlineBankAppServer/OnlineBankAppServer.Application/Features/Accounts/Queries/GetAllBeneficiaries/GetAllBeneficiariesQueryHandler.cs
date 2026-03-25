@@ -15,7 +15,11 @@ internal sealed class GetAllBeneficiariesQueryHandler(
     {
         // 1. Kullanıcıyı Bul
         var userIdClaim = httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier);
-        if (userIdClaim is null) throw new Exception("Kullanıcı bulunamadı.");
+
+        if (userIdClaim is null)
+        {
+            throw new UnauthorizedAccessException("Kullanıcı kimliği doğrulanmış bir oturumda bulunamadı.");
+        }
         int userId = int.Parse(userIdClaim.Value);
 
         // 2. Sadece bu kullanıcıya ait kayıtları getir

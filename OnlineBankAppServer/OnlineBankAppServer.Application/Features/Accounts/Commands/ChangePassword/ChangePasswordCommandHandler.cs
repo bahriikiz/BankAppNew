@@ -14,14 +14,16 @@ internal sealed class ChangePasswordCommandHandler(
     {
         // Kimliği Tokendan Çöz
         var userIdClaim = (httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)
-                          ?? httpContextAccessor.HttpContext?.User.FindFirst("sub")) ?? throw new Exception("Kimlik doğrulanamadı.");
+                       ?? httpContextAccessor.HttpContext?.User.FindFirst("sub"))
+                       ?? throw new UnauthorizedAccessException("Kimlik doğrulanamadı.");
         int userId = int.Parse(userIdClaim.Value);
-        var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken) ?? throw new Exception("Kullanıcı bulunamadı.");
+        var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken)
+           ?? throw new KeyNotFoundException("Kullanıcı bulunamadı.");
         bool isPasswordCorrect = BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash);
 
         if (!isPasswordCorrect)
         {
-            throw new Exception("Mevcut şifreniz hatalı!");
+            throw new UnauthorizedAccessException("Mevcut şifreniz hatalı!");
         }
 
         // YENİ ŞİFREYİ HASHLEYEREK KAYDET
