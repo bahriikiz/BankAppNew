@@ -37,8 +37,12 @@ export class DepositCalculatorComponent implements OnInit {
     this.vakifbankService.getDepositProducts().subscribe({
       next: (res: any) => {
         const data = res.data?.Data || res.data?.data || res.Data || res.data || res;
-        this.products = data?.DepositProduct || data?.depositProduct || [];
-        
+        const rawProducts = data?.DepositProduct || data?.depositProduct || [];
+        // Adı cari faiz olan mevduatı dönme! Faiz hesaplayıcı yok.
+        this.products = rawProducts.filter((p: any) => {
+          const productName = p.ProductName || p.productName || '';
+          return !productName.includes('Cari Faiz Oranları');
+        });
         
         if (this.products.length > 0) {
           this.selectedProduct = this.products[0];
