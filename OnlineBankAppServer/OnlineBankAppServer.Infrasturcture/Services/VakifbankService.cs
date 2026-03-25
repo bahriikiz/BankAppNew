@@ -1,10 +1,8 @@
-﻿using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using OnlineBankAppServer.Application.Abstractions;
 using OnlineBankAppServer.Application.Integration.Vakifbank.Dtos;
+using System.Net.Http.Headers;
+using System.Text.Json;
 
 namespace OnlineBankAppServer.Infrasturcture.Services;
 
@@ -12,9 +10,14 @@ public sealed class VakifbankService : IVakifbankService
 {
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
+
     private const string AuthScheme = "Bearer";
     private const string EmptyJsonBody = "{}";
     private const string JsonMediaType = "application/json";
+
+    // JSON seçeneklerini merkezi bir yerden yönetiyoruz
+    private static readonly JsonSerializerOptions DefaultJsonOptions = new() { PropertyNameCaseInsensitive = true };
+    private static readonly JsonSerializerOptions StrictJsonOptions = new() { PropertyNamingPolicy = null, PropertyNameCaseInsensitive = true };
 
     public VakifbankService(HttpClient httpClient, IConfiguration configuration)
     {
@@ -24,10 +27,10 @@ public sealed class VakifbankService : IVakifbankService
         _httpClient.BaseAddress = new Uri(baseUrl);
     }
 
+    #region Token İşlemleri (Tekilleştirildi)
+
     private async Task<string> GetAccessTokenAsync(string rizaNo, CancellationToken cancellationToken)
     {
-        var tokenUrl = _configuration["VakifBankB2B:TokenUrl"] ?? throw new InvalidOperationException("TokenUrl eksik!");
-
         var requestData = new Dictionary<string, string>
         {
             { "client_id", _configuration["VakifBankB2B:ClientId"]! },
@@ -38,24 +41,11 @@ public sealed class VakifbankService : IVakifbankService
             { "resource", _configuration["VakifBankB2B:Resource"]! }
         };
 
-        var content = new FormUrlEncodedContent(requestData);
-        var response = await _httpClient.PostAsync(tokenUrl, content, cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var error = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new HttpRequestException($"Vakıfbank Token alınamadı! Status: {response.StatusCode}, Detay: {error}");
-        }
-
-        var tokenResponse = await response.Content.ReadFromJsonAsync<VakifbankTokenResponseDto>(cancellationToken: cancellationToken);
-        return tokenResponse?.AccessToken ?? throw new InvalidOperationException("Vakıfbank Token boş döndü!");
+        return await RequestTokenInternalAsync(_configuration["VakifBankB2B:TokenUrl"], requestData, cancellationToken);
     }
 
     private async Task<string> GetPublicAccessTokenAsync(CancellationToken cancellationToken)
     {
-        string tokenUrl = _configuration["VakifBankApi:TokenUrl"]
-                       ?? throw new InvalidOperationException("VakifBankApi:TokenUrl ayarı eksik!");
-
         var requestBody = new Dictionary<string, string>
         {
             { "grant_type", "client_credentials" },
@@ -64,372 +54,147 @@ public sealed class VakifbankService : IVakifbankService
             { "scope", _configuration["VakifBankApi:Scope"]! }
         };
 
-        var content = new FormUrlEncodedContent(requestBody);
-        var response = await _httpClient.PostAsync(tokenUrl, content, cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var error = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new HttpRequestException($"Vakıfbank Public Token alınamadı! Status: {response.StatusCode}, Detay: {error}");
-        }
-
-        var tokenResponse = await response.Content.ReadFromJsonAsync<VakifbankTokenResponseDto>(cancellationToken: cancellationToken);
-        return tokenResponse?.AccessToken ?? throw new InvalidOperationException("Vakıfbank Public Token boş döndü!");
+        return await RequestTokenInternalAsync(_configuration["VakifBankApi:TokenUrl"], requestBody, cancellationToken);
     }
 
-    public async Task<VakifbankAccountListResponseDto?> GetAccountsAsync(string rizaNo, CancellationToken cancellationToken = default)
+    private async Task<string> RequestTokenInternalAsync(string? url, Dictionary<string, string> data, CancellationToken ct)
     {
-        string accessToken = await GetAccessTokenAsync(rizaNo, cancellationToken);
-        var apiUrl = _configuration["VakifBankB2B:ApiUrl"] ?? throw new InvalidOperationException("ApiUrl eksik!");
+        if (string.IsNullOrEmpty(url)) throw new InvalidOperationException("Token URL eksik!");
 
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue(AuthScheme, accessToken);
-        requestMessage.Content = new StringContent(EmptyJsonBody, System.Text.Encoding.UTF8, JsonMediaType);
+        var response = await _httpClient.PostAsync(url, new FormUrlEncodedContent(data), ct);
+        var result = await HandleResponseAsync<VakifbankTokenResponseDto>(response, ct);
 
-        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new HttpRequestException($"Vakıfbank Hesap Listesi API Hatası: {response.StatusCode} - Detay: {errorContent}");
-        }
-
-        return await response.Content.ReadFromJsonAsync<VakifbankAccountListResponseDto>(cancellationToken: cancellationToken);
+        return result?.AccessToken ?? throw new InvalidOperationException("Token boş döndü!");
     }
 
-    public async Task<VakifbankAccountTransactionsResponseDto?> GetAccountTransactionsAsync(string rizaNo, string accountNumber, DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
+    #endregion
+
+    #region Genel API İstek Motoru (Tekrarı Bitiren Kısım)
+
+    private async Task<T?> SendVakifbankRequestAsync<T>(
+        string? url,
+        string accessToken,
+        object? body = null,
+        JsonSerializerOptions? options = null,
+        CancellationToken ct = default)
     {
-        string accessToken = await GetAccessTokenAsync(rizaNo, cancellationToken);
-        var transactionsUrl = _configuration["VakifBankB2B:TransactionsUrl"]
-            ?? throw new InvalidOperationException("TransactionsUrl appsettings.json dosyasında eksik!");
+        if (string.IsNullOrEmpty(url)) throw new InvalidOperationException("API URL eksik!");
 
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, transactionsUrl);
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue(AuthScheme, accessToken);
+        var request = new HttpRequestMessage(HttpMethod.Post, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue(AuthScheme, accessToken);
 
-        var requestModel = new
-        {
-            AccountNumber = accountNumber,
-            StartDate = startDate.ToString("yyyy-MM-ddTHH:mm:ss+03:00"),
-            EndDate = endDate.ToString("yyyy-MM-ddTHH:mm:ss+03:00")
-        };
+        string json = body != null ? JsonSerializer.Serialize(body, options ?? DefaultJsonOptions) : EmptyJsonBody;
+        request.Content = new StringContent(json, System.Text.Encoding.UTF8, JsonMediaType);
 
-        requestMessage.Content = new StringContent(JsonSerializer.Serialize(requestModel), System.Text.Encoding.UTF8, JsonMediaType);
-
-        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
-        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"Vakıfbank Hesap Hareketleri Hatası: {response.StatusCode} - {responseContent}");
-
-        return JsonSerializer.Deserialize<VakifbankAccountTransactionsResponseDto>(responseContent);
+        var response = await _httpClient.SendAsync(request, ct);
+        return await HandleResponseAsync<T>(response, ct, options);
     }
 
-    public async Task<VakifbankAccountDetailResponseDto?> GetAccountDetailAsync(string rizaNo, string accountNumber, CancellationToken cancellationToken = default)
+    private static async Task<T?> HandleResponseAsync<T>(HttpResponseMessage response, CancellationToken ct, JsonSerializerOptions? options = null)
     {
-        string accessToken = await GetAccessTokenAsync(rizaNo, cancellationToken);
-        var detailUrl = _configuration["VakifBankB2B:AccountDetailUrl"]
-                         ?? "https://inbound.apigatewaytest.vakifbank.com.tr:8443/accountDetail";
-
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, detailUrl);
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue(AuthScheme, accessToken);
-
-        var requestModel = new { AccountNumber = accountNumber };
-        requestMessage.Content = new StringContent(JsonSerializer.Serialize(requestModel), System.Text.Encoding.UTF8, JsonMediaType);
-
-        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
-        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-
+        var content = await response.Content.ReadAsStringAsync(ct);
         if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"Vakıfbank Hesap Detayı Hatası: {response.StatusCode} - {responseContent}");
+            throw new HttpRequestException($"API Hatası: {response.StatusCode} - {content}");
 
-        return JsonSerializer.Deserialize<VakifbankAccountDetailResponseDto>(responseContent);
+        return JsonSerializer.Deserialize<T>(content, options ?? DefaultJsonOptions);
     }
 
-    public async Task<VakifbankReceiptResponseDto?> GetTransactionReceiptAsync(string rizaNo, string transactionId, string accountNumber, string receiptFormat = "pdf", CancellationToken cancellationToken = default)
+    #endregion
+
+    // --- Servis Metotları ---
+
+    public async Task<VakifbankAccountListResponseDto?> GetAccountsAsync(string rizaNo, CancellationToken ct = default)
     {
-        string accessToken = await GetAccessTokenAsync(rizaNo, cancellationToken);
-        var receiptUrl = _configuration["VakifBankB2B:ReceiptUrl"]
-            ?? "https://inbound.apigatewaytest.vakifbank.com.tr:8443/getReceipt";
-
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, receiptUrl);
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue(AuthScheme, accessToken);
-
-        var requestModel = new
-        {
-            TransactionId = transactionId,
-            AccountNumber = accountNumber,
-            ReceiptFormat = receiptFormat
-        };
-
-        requestMessage.Content = new StringContent(JsonSerializer.Serialize(requestModel), System.Text.Encoding.UTF8, JsonMediaType);
-
-        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
-        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"Vakıfbank Dekont Hatası: {response.StatusCode} - {responseContent}");
-
-        return JsonSerializer.Deserialize<VakifbankReceiptResponseDto>(responseContent);
+        string token = await GetAccessTokenAsync(rizaNo, ct);
+        return await SendVakifbankRequestAsync<VakifbankAccountListResponseDto>(_configuration["VakifBankB2B:ApiUrl"], token, null, null, ct);
     }
 
-    public async Task<VakifbankCityResponseDto?> GetCitiesAsync(CancellationToken cancellationToken = default)
+    public async Task<VakifbankAccountTransactionsResponseDto?> GetAccountTransactionsAsync(string rizaNo, string accountNumber, DateTime start, DateTime end, CancellationToken ct = default)
     {
-        string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
-        var apiUrl = _configuration["VakifBankApi:CitiesUrl"]
-                     ?? throw new InvalidOperationException("VakifBankApi:CitiesUrl ayarı eksik!");
-
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue(AuthScheme, accessToken);
-        requestMessage.Content = new StringContent(EmptyJsonBody, System.Text.Encoding.UTF8, JsonMediaType);
-
-        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
-        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"Vakıfbank Şehir Listesi Hatası: {response.StatusCode} - {responseContent}");
-
-        return JsonSerializer.Deserialize<VakifbankCityResponseDto>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        string token = await GetAccessTokenAsync(rizaNo, ct);
+        var body = new { AccountNumber = accountNumber, StartDate = start.ToString("yyyy-MM-ddTHH:mm:ss+03:00"), EndDate = end.ToString("yyyy-MM-ddTHH:mm:ss+03:00") };
+        return await SendVakifbankRequestAsync<VakifbankAccountTransactionsResponseDto>(_configuration["VakifBankB2B:TransactionsUrl"], token, body, null, ct);
     }
 
-    public async Task<VakifbankDistrictResponseDto?> GetDistrictsAsync(string cityCode, CancellationToken cancellationToken = default)
+    public async Task<VakifbankAccountDetailResponseDto?> GetAccountDetailAsync(string rizaNo, string accNo, CancellationToken ct = default)
     {
-        string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
-        var apiUrl = _configuration["VakifBankApi:DistrictsUrl"]
-                     ?? throw new InvalidOperationException("VakifBankApi:DistrictsUrl ayarı eksik!");
-
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue(AuthScheme, accessToken);
-
-        var requestModel = new { CityCode = cityCode };
-        var json = JsonSerializer.Serialize(requestModel, new JsonSerializerOptions { PropertyNamingPolicy = null });
-        requestMessage.Content = new StringContent(json, System.Text.Encoding.UTF8, JsonMediaType);
-
-        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
-        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"Vakıfbank İlçe Listesi Hatası: {response.StatusCode} - {responseContent}");
-
-        return JsonSerializer.Deserialize<VakifbankDistrictResponseDto>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        string token = await GetAccessTokenAsync(rizaNo, ct);
+        return await SendVakifbankRequestAsync<VakifbankAccountDetailResponseDto>(_configuration["VakifBankB2B:AccountDetailUrl"], token, new { AccountNumber = accNo }, null, ct);
     }
 
-    public async Task<VakifbankNeighborhoodResponseDto?> GetNeighborhoodsAsync(string districtCode, CancellationToken cancellationToken = default)
+    public async Task<VakifbankReceiptResponseDto?> GetReceiptAsync(string riza, string accNo, string txId, string format = "pdf", CancellationToken ct = default)
     {
-        string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
-        var apiUrl = _configuration["VakifBankApi:NeighborhoodsUrl"]!;
-
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue(AuthScheme, accessToken);
-
-        var requestModel = new { DistrictCode = districtCode?.Trim() };
-        string jsonBody = JsonSerializer.Serialize(requestModel, new JsonSerializerOptions { PropertyNamingPolicy = null });
-
-        var content = new StringContent(jsonBody, System.Text.Encoding.UTF8, JsonMediaType);
-        content.Headers.ContentType!.CharSet = "";
-        requestMessage.Content = content;
-
-        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
-        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"Vakıfbank Mahalle Listesi Hatası: {response.StatusCode} - {responseContent}");
-
-        return JsonSerializer.Deserialize<VakifbankNeighborhoodResponseDto>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        string token = await GetAccessTokenAsync(riza, ct);
+        var body = new { TransactionId = txId, AccountNumber = accNo, ReceiptFormat = format };
+        return await SendVakifbankRequestAsync<VakifbankReceiptResponseDto>(_configuration["VakifBankB2B:ReceiptUrl"], token, body, null, ct);
     }
 
-    public async Task<VakifbankBranchResponseDto?> GetBranchesAsync(string cityCode, string bankDistrictCode, CancellationToken cancellationToken = default)
+    public async Task<VakifbankCityResponseDto?> GetCitiesAsync(CancellationToken ct = default)
     {
-        string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
-        var apiUrl = _configuration["VakifBankApi:BranchesUrl"]
-                     ?? throw new InvalidOperationException("VakifBankApi:BranchesUrl ayarı eksik!");
-
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue(AuthScheme, accessToken);
-        requestMessage.Content = new StringContent(EmptyJsonBody, System.Text.Encoding.UTF8, JsonMediaType);
-
-        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
-        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"Vakıfbank Şube Listesi Hatası: {response.StatusCode} - {responseContent}");
-
-        var result = JsonSerializer.Deserialize<VakifbankBranchResponseDto>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-        if (result?.Data?.Branch == null)
-            throw new InvalidOperationException("Vakıfbank API'si şu anda şube verisi döndürmüyor.");
-
-        var filteredBranches = result.Data.Branch.AsEnumerable();
-
-        if (!string.IsNullOrEmpty(cityCode))
-            filteredBranches = filteredBranches.Where(x => x.CityCode?.Trim() == cityCode.Trim());
-
-        if (!string.IsNullOrEmpty(bankDistrictCode))
-            filteredBranches = filteredBranches.Where(x => x.DistrictCode?.Trim() == bankDistrictCode.Trim());
-
-        var finalBranchList = filteredBranches.ToList();
-
-        if (finalBranchList.Count == 0)
-            throw new KeyNotFoundException("Belirtilen kriterlere uygun herhangi bir şube bulunamadı.");
-
-        return new VakifbankBranchResponseDto(result.Header, new VakifbankBranchDataDto([.. finalBranchList]));
+        string token = await GetPublicAccessTokenAsync(ct);
+        return await SendVakifbankRequestAsync<VakifbankCityResponseDto>(_configuration["VakifBankApi:CitiesUrl"], token, null, null, ct);
     }
 
-    public async Task<VakifbankBankListResponseDto?> GetBankListAsync(CancellationToken cancellationToken = default)
+    public async Task<VakifbankDistrictResponseDto?> GetDistrictsAsync(string cityCode, CancellationToken ct = default)
     {
-        string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
-        var apiUrl = _configuration["VakifBankApi:BankListUrl"]
-                     ?? throw new InvalidOperationException("VakifBankApi:BankListUrl ayarı eksik!");
-
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue(AuthScheme, accessToken);
-        requestMessage.Content = new StringContent(EmptyJsonBody, System.Text.Encoding.UTF8, JsonMediaType);
-
-        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
-        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"Vakıfbank Banka Listesi Hatası: {response.StatusCode} - {responseContent}");
-
-        return JsonSerializer.Deserialize<VakifbankBankListResponseDto>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        string token = await GetPublicAccessTokenAsync(ct);
+        return await SendVakifbankRequestAsync<VakifbankDistrictResponseDto>(_configuration["VakifBankApi:DistrictsUrl"], token, new { CityCode = cityCode }, StrictJsonOptions, ct);
     }
 
-    public async Task<VakifbankNearestResponseDto?> GetNearestBranchAndAtmAsync(string latitude, string longitude, int distanceLimit, CancellationToken cancellationToken = default)
+    public async Task<VakifbankNeighborhoodResponseDto?> GetNeighborhoodsAsync(string districtCode, CancellationToken ct = default)
     {
-        string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
-        var apiUrl = _configuration["VakifBankApi:NearestUrl"]
-                     ?? throw new InvalidOperationException("VakifBankApi:NearestUrl ayarı eksik!");
-
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue(AuthScheme, accessToken);
-
-        var safeLatitude = latitude.Replace(".", ",");
-        var safeLongitude = longitude.Replace(".", ",");
-
-        var requestModel = new
-        {
-            Latitude = safeLatitude,
-            Longitude = safeLongitude,
-            DistanceLimit = distanceLimit
-        };
-
-        string json = JsonSerializer.Serialize(requestModel, new JsonSerializerOptions { PropertyNamingPolicy = null });
-        requestMessage.Content = new StringContent(json, System.Text.Encoding.UTF8, JsonMediaType);
-
-        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
-        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"Vakıfbank En Yakın Şube/ATM Hatası: {response.StatusCode} - {responseContent}");
-
-        var result = JsonSerializer.Deserialize<VakifbankNearestResponseDto>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-        if (result?.Data?.BranchandATM == null || result.Data.BranchandATM.Count == 0)
-            throw new KeyNotFoundException("Belirtilen kriterlere uygun Şube veya ATM bulunamadı.");
-
-        return result;
+        string token = await GetPublicAccessTokenAsync(ct);
+        return await SendVakifbankRequestAsync<VakifbankNeighborhoodResponseDto>(_configuration["VakifBankApi:NeighborhoodsUrl"], token, new { DistrictCode = districtCode?.Trim() }, StrictJsonOptions, ct);
     }
 
-    public async Task<VakifbankDepositResponseDto?> CalculateDepositAsync(decimal amount, string currencyCode, long depositType, long campaignId, int termDays, CancellationToken cancellationToken = default)
+    public async Task<VakifbankBranchResponseDto?> GetBranchesAsync(string city, string dist, CancellationToken ct = default)
     {
-        string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
-        var apiUrl = _configuration["VakifBankApi:DepositCalculatorUrl"]
-                     ?? throw new InvalidOperationException("VakifBankApi:DepositCalculatorUrl ayarı eksik!");
+        string token = await GetPublicAccessTokenAsync(ct);
+        var result = await SendVakifbankRequestAsync<VakifbankBranchResponseDto>(_configuration["VakifBankApi:BranchesUrl"], token, null, null, ct);
 
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue(AuthScheme, accessToken);
+        if (result?.Data?.Branch == null) throw new InvalidOperationException("Şube verisi dönmedi.");
 
-        var requestModel = new
-        {
-            Amount = amount,
-            CurrencyCode = currencyCode,
-            DepositType = depositType,
-            CampaignId = campaignId,
-            TermDays = termDays
-        };
+        var filtered = result.Data.Branch.Where(x =>
+            (string.IsNullOrEmpty(city) || x.CityCode?.Trim() == city.Trim()) &&
+            (string.IsNullOrEmpty(dist) || x.DistrictCode?.Trim() == dist.Trim())).ToList();
 
-        string json = JsonSerializer.Serialize(requestModel, new JsonSerializerOptions { PropertyNamingPolicy = null });
-        requestMessage.Content = new StringContent(json, System.Text.Encoding.UTF8, JsonMediaType);
-
-        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
-        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"Vakıfbank Mevduat Hesaplama Hatası: {response.StatusCode} - {responseContent}");
-
-        var result = JsonSerializer.Deserialize<VakifbankDepositResponseDto>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-        if (result?.Data?.Deposit == null)
-            throw new KeyNotFoundException("Seçtiğiniz kriterlere uygun mevduat bilgisi bulunamadı.");
-
-        return result;
+        if (filtered.Count == 0) throw new KeyNotFoundException("Şube bulunamadı.");
+        return new VakifbankBranchResponseDto(result.Header, new VakifbankBranchDataDto([.. filtered]));
     }
 
-    public async Task<VakifbankDepositProductResponseDto?> GetDepositProductsAsync(CancellationToken cancellationToken = default)
+    public async Task<VakifbankBankListResponseDto?> GetBankListAsync(CancellationToken ct = default)
     {
-        string accessToken = await GetPublicAccessTokenAsync(cancellationToken);
-        var apiUrl = _configuration["VakifBankApi:DepositProductsUrl"]
-                     ?? throw new InvalidOperationException("VakifBankApi:DepositProductsUrl ayarı eksik!");
-
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, apiUrl);
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue(AuthScheme, accessToken);
-        requestMessage.Content = new StringContent(EmptyJsonBody, System.Text.Encoding.UTF8, JsonMediaType);
-
-        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
-        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"Vakıfbank Mevduat Ürün Listesi Hatası: {response.StatusCode} - {responseContent}");
-
-        return JsonSerializer.Deserialize<VakifbankDepositProductResponseDto>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        string token = await GetPublicAccessTokenAsync(ct);
+        return await SendVakifbankRequestAsync<VakifbankBankListResponseDto>(_configuration["VakifBankApi:BankListUrl"], token, null, null, ct);
     }
 
-    public async Task<VakifbankReceiptResponseDto?> GetReceiptAsync(
-    string rizaNo,
-    string accountNumber,
-    string transactionId,
-    string receiptFormat = "pdf",
-    CancellationToken cancellationToken = default)
+    public async Task<VakifbankNearestResponseDto?> GetNearestBranchAndAtmAsync(string lat, string lon, int dist, CancellationToken ct = default)
     {
-        string accessToken = await GetAccessTokenAsync(rizaNo, cancellationToken);
+        string token = await GetPublicAccessTokenAsync(ct);
+        var body = new { Latitude = lat.Replace(".", ","), Longitude = lon.Replace(".", ","), DistanceLimit = dist };
+        var res = await SendVakifbankRequestAsync<VakifbankNearestResponseDto>(_configuration["VakifBankApi:NearestUrl"], token, body, StrictJsonOptions, ct);
 
-        var receiptUrl = _configuration["VakifBankB2B:ReceiptUrl"]
-            ?? "https://inbound.apigatewaytest.vakifbank.com.tr:8443/getReceipt";
-
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, receiptUrl);
-        requestMessage.Headers.Authorization = new AuthenticationHeaderValue(AuthScheme, accessToken);
-
-        var requestModel = new
-        {
-            TransactionId = transactionId,
-            AccountNumber = accountNumber,
-            ReceiptFormat = receiptFormat
-        };
-
-        requestMessage.Content = new StringContent(JsonSerializer.Serialize(requestModel), System.Text.Encoding.UTF8, JsonMediaType);
-
-        var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
-        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new HttpRequestException($"Vakıfbank Dekont Hatası: {response.StatusCode} - {responseContent}");
-        }
-
-        return JsonSerializer.Deserialize<VakifbankReceiptResponseDto>(responseContent);
+        if (res?.Data?.BranchandATM == null || res.Data.BranchandATM.Count == 0) throw new KeyNotFoundException("ATM/Şube bulunamadı.");
+        return res;
     }
-}
 
-public class VakifbankTokenResponseDto
-{
-    [JsonPropertyName("access_token")]
-    public string AccessToken { get; set; } = string.Empty;
+    public async Task<VakifbankDepositResponseDto?> CalculateDepositAsync(decimal amt, string cur, long type, long camp, int days, CancellationToken ct = default)
+    {
+        string token = await GetPublicAccessTokenAsync(ct);
+        var body = new { Amount = amt, CurrencyCode = cur, DepositType = type, CampaignId = camp, TermDays = days };
+        var res = await SendVakifbankRequestAsync<VakifbankDepositResponseDto>(_configuration["VakifBankApi:DepositCalculatorUrl"], token, body, StrictJsonOptions, ct);
 
-    [JsonPropertyName("token_type")]
-    public string TokenType { get; set; } = string.Empty;
+        if (res?.Data?.Deposit == null) throw new KeyNotFoundException("Mevduat bilgisi bulunamadı.");
+        return res;
+    }
 
-    [JsonPropertyName("expires_in")]
-    public int ExpiresIn { get; set; }
+    public async Task<VakifbankDepositProductResponseDto?> GetDepositProductsAsync(CancellationToken ct = default)
+    {
+        string token = await GetPublicAccessTokenAsync(ct);
+        return await SendVakifbankRequestAsync<VakifbankDepositProductResponseDto>(_configuration["VakifBankApi:DepositProductsUrl"], token, null, null, ct);
+    }
 
-    [JsonPropertyName("scope")]
-    public string Scope { get; set; } = string.Empty;
+    // Interface için yedek isim yönlendirmesi
+    public Task<VakifbankReceiptResponseDto?> GetTransactionReceiptAsync(string r, string t, string a, string f = "pdf", CancellationToken c = default)
+        => GetReceiptAsync(r, a, t, f, c);
 }
