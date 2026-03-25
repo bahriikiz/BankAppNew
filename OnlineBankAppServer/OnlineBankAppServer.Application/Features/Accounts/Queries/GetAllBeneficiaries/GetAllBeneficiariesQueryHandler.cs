@@ -13,7 +13,7 @@ internal sealed class GetAllBeneficiariesQueryHandler(
 {
     public async Task<List<Beneficiary>> Handle(GetAllBeneficiariesQuery request, CancellationToken cancellationToken)
     {
-        // 1. Kullanıcıyı Bul
+        // 1. Kullanıcıyı Bul Doğrula
         var userIdClaim = httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier);
 
         if (userIdClaim is null)
