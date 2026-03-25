@@ -27,6 +27,7 @@ public sealed class AuthController(IMediator mediator) : ApiController(mediator)
     {
         var response = await _mediator.Send(request, cancellationToken);
 
+
         // güvenli cookie ayarlarıyla token'ı cookie'ye yazıyoruz
         Response.Cookies.Append("AccessToken", response.Token, new CookieOptions
         {
