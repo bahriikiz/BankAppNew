@@ -20,6 +20,7 @@ public sealed class AuthController(IMediator mediator) : ApiController(mediator)
     {
         var response = await _mediator.Send(request, cancellationToken);
         return Ok(new { Message = response });
+
     }
 
     [HttpPost("login")]
