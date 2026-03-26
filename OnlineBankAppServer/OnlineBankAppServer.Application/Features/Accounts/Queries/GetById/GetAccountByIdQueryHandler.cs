@@ -8,7 +8,6 @@ using System.Globalization;
 
 namespace OnlineBankAppServer.Application.Features.Accounts.Queries.GetById
 {
-
     public sealed class GetAccountByIdQueryHandler(
         AppDbContext context,
         IVakifbankService vakifbankService) : IRequestHandler<GetAccountByIdQuery, AccountDetailDto>
@@ -34,9 +33,9 @@ namespace OnlineBankAppServer.Application.Features.Accounts.Queries.GetById
 
         private async Task<AccountDetailDto> GetVakifbankAccountDetailAsync(Account account, CancellationToken cancellationToken)
         {
+            string rizaNo = account.RizaNo!;
             string cleanIban = account.Iban.Replace(" ", "");
             string accountNumber = cleanIban.Length >= 17 ? cleanIban[^17..] : cleanIban;
-
             decimal liveBalance = account.Balance;
             string liveCurrency = account.CurrencyType ?? "TRY";
             var transactions = new List<AccountTransactionDto>();
@@ -44,15 +43,19 @@ namespace OnlineBankAppServer.Application.Features.Accounts.Queries.GetById
             try
             {
                 // A) Canlı Bakiye
-                VakifbankAccountDetailResponseDto? detail = await vakifbankService.GetAccountDetailAsync(account.RizaNo, accountNumber, cancellationToken);
+                var detail = await vakifbankService.GetAccountDetailAsync(rizaNo, accountNumber, cancellationToken);
                 if (detail?.Data?.AccountInfo != null)
                 {
-                    decimal.TryParse(detail.Data.AccountInfo.Balance?.Replace(".", ","), NumberStyles.Any, TrCulture, out liveBalance);
+                    // Bakiye sıfırlanmasını önlüyoruz
+                    if (decimal.TryParse(detail.Data.AccountInfo.Balance?.Replace(".", ","), NumberStyles.Any, TrCulture, out decimal parsedBalance))
+                    {
+                        liveBalance = parsedBalance;
+                    }
                     liveCurrency = detail.Data.AccountInfo.CurrencyCode == "TL" ? "TRY" : detail.Data.AccountInfo.CurrencyCode ?? "TRY";
                 }
 
                 // B) Canlı Hareketler
-                var txResponse = await vakifbankService.GetAccountTransactionsAsync(account.RizaNo, accountNumber, DateTime.Now.AddMonths(-1), DateTime.Now, cancellationToken);
+                var txResponse = await vakifbankService.GetAccountTransactionsAsync(rizaNo, accountNumber, DateTime.Now.AddMonths(-1), DateTime.Now, cancellationToken);
                 if (txResponse?.Data?.AccountTransactions != null)
                 {
                     transactions = MapVakifbankTransactions(txResponse.Data.AccountTransactions);
@@ -65,19 +68,24 @@ namespace OnlineBankAppServer.Application.Features.Accounts.Queries.GetById
 
         private static List<AccountTransactionDto> MapVakifbankTransactions(IEnumerable<dynamic> apiTransactions)
         {
-            return [.. apiTransactions.Select(t =>
+            var list = new List<AccountTransactionDto>();
+
+            foreach (var t in apiTransactions)
             {
                 decimal.TryParse(t.Amount?.Replace(".", ","), NumberStyles.Any, TrCulture, out decimal amount);
                 DateTime.TryParse(t.TransactionDate, out DateTime transactionDate);
-                return new AccountTransactionDto(
+
+                list.Add(new AccountTransactionDto(
                     amount,
                     t.Description ?? "VakıfBank İşlemi",
                     transactionDate,
                     transactionDate.ToString("dd.MM.yyyy HH:mm"),
                     t.TransactionType == "1" ? "Gelen Para" : "Giden Para",
                     "Açık Bankacılık",
-                    t.TransactionId);
-            })];
+                    t.TransactionId));
+            }
+
+            return list;
         }
 
         private async Task<AccountDetailDto> GetLocalAccountDetailAsync(Account account, CancellationToken cancellationToken)

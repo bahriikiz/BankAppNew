@@ -72,7 +72,7 @@ public sealed class ExchangeService(HttpClient httpClient, IConfiguration config
         if (!response.IsSuccessStatusCode)
         {
             var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new Exception($"VakıfBank Kur Hatası ({response.StatusCode}): {errorContent}");
+            throw new KeyNotFoundException($"VakıfBank Kur Hatası ({response.StatusCode}): {errorContent}");
         }
 
         var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -80,7 +80,7 @@ public sealed class ExchangeService(HttpClient httpClient, IConfiguration config
 
         if (result?.Data?.Currency?.SaleAmount == null)
         {
-            throw new Exception("VakıfBank'tan kur bilgisi okunamadı.");
+            throw new KeyNotFoundException("VakıfBank'tan kur bilgisi okunamadı.");
         }
 
         // Parse İşlemi (Nokta/Virgül kontrolü)
@@ -94,7 +94,7 @@ public sealed class ExchangeService(HttpClient httpClient, IConfiguration config
             return rateTr;
         }
 
-        throw new Exception($"Kur format hatası: {result.Data.Currency.SaleAmount}");
+        throw new KeyNotFoundException($"Kur format hatası: {result.Data.Currency.SaleAmount}");
     }
 
     private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
@@ -126,13 +126,13 @@ public sealed class ExchangeService(HttpClient httpClient, IConfiguration config
         if (!response.IsSuccessStatusCode)
         {
             var error = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new Exception($"Token Hatası: {error}");
+            throw new KeyNotFoundException($"Token Hatası: {error}");
         }
 
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
         var tokenResult = JsonSerializer.Deserialize<VakifBankTokenResponse>(content);
 
-        return tokenResult?.Access_token ?? throw new Exception("Token boş.");
+        return tokenResult?.Access_token ?? throw new KeyNotFoundException("Token boş.");
     }
 }
 
