@@ -14,8 +14,7 @@ internal sealed class GetMyBanksQueryHandler(
     public async Task<List<Bank>> Handle(GetMyBanksQuery request, CancellationToken cancellationToken)
     {
         // Giriş yapan kullanıcının ID'sini bul
-        var userIdClaim = httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier);
-        if (userIdClaim is null) throw new UnauthorizedAccessException("Kullanıcı bulunamadı.");
+        var userIdClaim = (httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)) ?? throw new UnauthorizedAccessException("Kullanıcı bulunamadı.");
         int userId = int.Parse(userIdClaim.Value);
 
         // Sadece kullanıcının hesabı olan bankaları getir

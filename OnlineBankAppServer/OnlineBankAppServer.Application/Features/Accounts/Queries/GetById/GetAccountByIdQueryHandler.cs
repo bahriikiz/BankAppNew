@@ -35,7 +35,7 @@ namespace OnlineBankAppServer.Application.Features.Accounts.Queries.GetById
         private async Task<AccountDetailDto> GetVakifbankAccountDetailAsync(Account account, CancellationToken cancellationToken)
         {
             string cleanIban = account.Iban.Replace(" ", "");
-            string accountNumber = cleanIban.Length >= 17 ? cleanIban.Substring(cleanIban.Length - 17) : cleanIban;
+            string accountNumber = cleanIban.Length >= 17 ? cleanIban[^17..] : cleanIban;
 
             decimal liveBalance = account.Balance;
             string liveCurrency = account.CurrencyType ?? "TRY";
@@ -44,7 +44,7 @@ namespace OnlineBankAppServer.Application.Features.Accounts.Queries.GetById
             try
             {
                 // A) Canlı Bakiye
-                var detail = await vakifbankService.GetAccountDetailAsync(account.RizaNo, accountNumber, cancellationToken);
+                VakifbankAccountDetailResponseDto? detail = await vakifbankService.GetAccountDetailAsync(account.RizaNo, accountNumber, cancellationToken);
                 if (detail?.Data?.AccountInfo != null)
                 {
                     decimal.TryParse(detail.Data.AccountInfo.Balance?.Replace(".", ","), NumberStyles.Any, TrCulture, out liveBalance);
@@ -60,12 +60,12 @@ namespace OnlineBankAppServer.Application.Features.Accounts.Queries.GetById
             }
             catch { /* API Hatasında lokal verilerle devam et */ }
 
-            return new AccountDetailDto(account.Id, account.Iban, liveBalance, liveCurrency, transactions.OrderByDescending(x => x.Date).ToList());
+            return new AccountDetailDto(account.Id, account.Iban, liveBalance, liveCurrency, [.. transactions.OrderByDescending(x => x.Date)]);
         }
 
         private static List<AccountTransactionDto> MapVakifbankTransactions(IEnumerable<dynamic> apiTransactions)
         {
-            return apiTransactions.Select(t =>
+            return [.. apiTransactions.Select(t =>
             {
                 decimal.TryParse(t.Amount?.Replace(".", ","), NumberStyles.Any, TrCulture, out decimal amount);
                 DateTime.TryParse(t.TransactionDate, out DateTime transactionDate);
@@ -77,7 +77,7 @@ namespace OnlineBankAppServer.Application.Features.Accounts.Queries.GetById
                     t.TransactionType == "1" ? "Gelen Para" : "Giden Para",
                     "Açık Bankacılık",
                     t.TransactionId);
-            }).ToList();
+            })];
         }
 
         private async Task<AccountDetailDto> GetLocalAccountDetailAsync(Account account, CancellationToken cancellationToken)

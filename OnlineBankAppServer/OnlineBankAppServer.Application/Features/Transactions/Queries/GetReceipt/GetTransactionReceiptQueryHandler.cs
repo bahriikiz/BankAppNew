@@ -13,13 +13,11 @@ internal sealed class GetTransactionReceiptQueryHandler(
     {
         var account = await context.Accounts
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == request.AccountId, cancellationToken);
-
-        if (account is null) throw new Exception("Hesap bulunamadı!");
-        if (string.IsNullOrEmpty(account.RizaNo)) throw new Exception("Bu işlem sadece Açık Bankacılık (VakıfBank) hesapları için geçerlidir.");
+            .FirstOrDefaultAsync(p => p.Id == request.AccountId, cancellationToken) ?? throw new KeyNotFoundException("Hesap bulunamadı!");
+        if (string.IsNullOrEmpty(account.RizaNo)) throw new InvalidOperationException("Bu işlem sadece Açık Bankacılık (VakıfBank) hesapları için geçerlidir.");
 
         string cleanIban = account.Iban.Replace(" ", "");
-        string accountNumber = cleanIban.Length >= 17 ? cleanIban.Substring(cleanIban.Length - 17) : cleanIban;
+        string accountNumber = cleanIban.Length >= 17 ? cleanIban[^17..] : cleanIban;
 
         var receiptResponse = await vakifbankService.GetReceiptAsync(
             account.RizaNo,
@@ -29,7 +27,7 @@ internal sealed class GetTransactionReceiptQueryHandler(
             cancellationToken);
 
         if (receiptResponse?.Documents == null)
-            throw new Exception("Dekont belgesi bulunamadı.");
+            throw new KeyNotFoundException("Dekont belgesi bulunamadı.");
 
         // Eğer 1 (PDF) seçildiyse Base64 PDF döner, 2 (TXT) seçildiyse normal metin döner
         return request.Format == "1"

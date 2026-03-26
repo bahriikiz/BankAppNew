@@ -26,7 +26,7 @@ internal sealed class GetAccountActivitiesQueryHandler(
         (DateTime startDate, DateTime endDate) = DetermineDateRange(request.StartDate, request.EndDate);
 
         // 3. Hesap Türüne Göre Veriyi Çek (Açık Bankacılık vs Lokal)
-        if (!string.IsNullOrEmpty(account.RizaNo))
+        if (!string.IsNullOrEmpty(account.RizaNo) && account.RizaNo != null)
         {
             return await GetVakifbankTransactionsAsync(account, startDate, endDate, cancellationToken);
         }
@@ -53,7 +53,7 @@ internal sealed class GetAccountActivitiesQueryHandler(
     private async Task<List<BankTransaction>> GetVakifbankTransactionsAsync(Account account, DateTime startDate, DateTime endDate, CancellationToken cancellationToken)
     {
         string cleanIban = account.Iban.Replace(" ", "");
-        string accountNumber = cleanIban.Length >= 17 ? cleanIban.Substring(cleanIban.Length - 17) : cleanIban;
+        string accountNumber = cleanIban.Length >= 17 ? cleanIban[^17..] : cleanIban;
 
         var apiResponse = await vakifbankService.GetAccountTransactionsAsync(
             account.RizaNo!,
@@ -75,7 +75,7 @@ internal sealed class GetAccountActivitiesQueryHandler(
             if (t.TransactionType == "2" && amount > 0)
                 amount = -amount;
 
-            DateTime.TryParse(t.TransactionDate, out DateTime transactionDate);
+            DateTime transactionDate = ParseTransactionDate(t.TransactionDate);
 
             apiTransactions.Add(new BankTransaction
             {
@@ -88,7 +88,40 @@ internal sealed class GetAccountActivitiesQueryHandler(
             });
         }
 
-        return apiTransactions.OrderByDescending(x => x.TransactionDate).ToList();
+        return [.. apiTransactions.OrderByDescending(x => x.TransactionDate)];
+    }
+
+    private static DateTime ParseTransactionDate(string? dateString)
+    {
+        if (string.IsNullOrEmpty(dateString))
+            return DateTime.Now;
+
+        string[] formats =
+        [
+            "dd.MM.yyyy HH:mm:ss",    // 25.12.2024 14:30:45
+            "dd.MM.yyyy",              // 25.12.2024
+            "dd-MM-yyyy",              // 25-12-2024
+            "yyyy-MM-dd",              // 2024-12-25
+            "yyyy-MM-dd HH:mm:ss",     // 2024-12-25 14:30:45
+            "MM/dd/yyyy",              // 12/25/2024
+            "dd/MM/yyyy"               // 25/12/2024
+        ];
+
+        // Türkçe format provider ile ayrıştırma dene
+        if (DateTime.TryParseExact(dateString, formats, TrCulture, DateTimeStyles.None, out DateTime trDate))
+            return trDate;
+
+        // İngilizce (ABD) format provider ile dene
+        var enUsCulture = CultureInfo.GetCultureInfo("en-US");
+        if (DateTime.TryParseExact(dateString, formats, enUsCulture, DateTimeStyles.None, out DateTime enDate))
+            return enDate;
+
+        // Son çare: genel TryParse
+        if (DateTime.TryParse(dateString, TrCulture, DateTimeStyles.None, out DateTime result))
+            return result;
+
+        // Hata durumunda günümüzün tarihi dön
+        return DateTime.Now;
     }
 
     private async Task<List<BankTransaction>> GetLocalTransactionsAsync(int accountId, DateTime startDate, DateTime endDate, CancellationToken cancellationToken)
