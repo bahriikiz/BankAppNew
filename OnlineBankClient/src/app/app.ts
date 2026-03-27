@@ -3,7 +3,7 @@ import { isPlatformBrowser, CommonModule } from '@angular/common';
 import { RouterOutlet, RouterLink } from '@angular/router'; 
 import { ExchangeService } from './services/exchanges.service';
 import { AuthService } from './services/auth.service';
-import { AiChatComponent } from './components/ai-chat/ai-chat.component'; // YENİ: Import edildi
+import { AiChatComponent } from './components/ai-chat/ai-chat.component'; 
 
 @Component({
   selector: 'app-root',
