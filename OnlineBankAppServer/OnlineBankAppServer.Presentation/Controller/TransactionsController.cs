@@ -9,10 +9,9 @@ using OnlineBankAppServer.Presentation.Abstraction;
 namespace OnlineBankAppServer.Presentation.Controller;
 
 [Authorize]
-public sealed class TransactionsController : ApiController
+public sealed class TransactionsController(IMediator mediator) : ApiController(mediator)
 {
-    public TransactionsController(IMediator mediator) : base(mediator) { }
-
+    // Para Transferi
     [HttpPost("transfer")]
     public async Task<IActionResult> Transfer(MoneyTransferCommand request, CancellationToken cancellationToken)
     {
@@ -20,6 +19,7 @@ public sealed class TransactionsController : ApiController
         return Ok(new { Message = response });
     }
 
+    // Hesap Hareketleri Sorgulama
     [HttpPost("get-activities")]
     public async Task<IActionResult> GetActivities(GetAccountActivitiesQuery request, CancellationToken cancellationToken)
     {
@@ -27,7 +27,7 @@ public sealed class TransactionsController : ApiController
         return Ok(response);
     }
 
-    // --- YENİ: DEKONT SORGULAMA ---
+    // Dekont Sorgulama
     [HttpGet("{accountId}/receipt/{transactionId}")]
     public async Task<IActionResult> GetReceipt(int accountId, string transactionId, [FromQuery] string format = "2", CancellationToken cancellationToken = default)
     {

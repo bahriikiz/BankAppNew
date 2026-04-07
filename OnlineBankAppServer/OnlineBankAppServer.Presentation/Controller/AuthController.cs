@@ -31,28 +31,42 @@ public sealed class AuthController(IMediator mediator) : ApiController(mediator)
         // güvenli cookie ayarlarıyla token'ı cookie'ye yazıyoruz
         Response.Cookies.Append("AccessToken", response.Token, new CookieOptions
         {
-            HttpOnly = true, 
-            Secure = true, 
-            SameSite = SameSiteMode.None,  
-            Expires = DateTimeOffset.UtcNow.AddHours(1) 
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.None,
+            Expires = DateTimeOffset.UtcNow.AddHours(1)
         });
 
         return Ok(response); // Artık response.Token Angular'da localStorage'a yazılmayacak!
     }
 
+    [Authorize]
     [HttpGet("logout")]
-    public IActionResult Logout()
+    public async Task<IActionResult> Logout([FromServices] OnlineBankAppServer.Persistance.AppDbContext context)
     {
-        // Çıkış yapınca çerezi imha et!
+        var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)
+                          ?? User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+
+        if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
+        {
+            var user = await context.Users.FindAsync(userId);
+            if (user != null)
+            {
+                user.SecurityStamp = Guid.NewGuid();
+                user.RefreshToken = null;
+                await context.SaveChangesAsync();
+            }
+        }
+
         Response.Cookies.Delete("AccessToken", new CookieOptions
         {
             HttpOnly = true,
             Secure = true,
             SameSite = SameSiteMode.None
         });
+
         return Ok(new { Message = "Güvenli çıkış yapıldı." });
     }
-
 
     [Authorize]
     [HttpDelete("delete-my-profile")]

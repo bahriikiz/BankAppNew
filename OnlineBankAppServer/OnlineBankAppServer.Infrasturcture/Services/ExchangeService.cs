@@ -9,7 +9,7 @@ namespace OnlineBankAppServer.Infrasturcture.Services;
 
 public sealed class ExchangeService(HttpClient httpClient, IConfiguration configuration) : IExchangeService
 {
-    // --- AKILLI YÖNLENDİRİCİ METOT (TL KÖPRÜSÜ) ---
+    // TL karşısında diğer dövizlerin kurlarını VakıfBank API'si üzerinden alarak çapraz kur hesaplaması yapar.
     public async Task<decimal> GetRateAsync(string fromCurrency, string toCurrency, CancellationToken cancellationToken)
     {
         fromCurrency = fromCurrency.ToUpper();
@@ -17,22 +17,17 @@ public sealed class ExchangeService(HttpClient httpClient, IConfiguration config
 
         if (fromCurrency == toCurrency) return 1;
 
-        // SENARYO 1: Yabancı Döviz -> TL (Örn: USD -> TRY veya XAU -> TRY)
         if (toCurrency == "TRY" || toCurrency == "TL")
         {
             return await FetchRateFromVakifBankAsync(fromCurrency, "TL", cancellationToken);
         }
 
-        // SENARYO 2: TL -> Yabancı Döviz (Örn: TRY -> USD)
-        // Çözüm: USD -> TRY kurunu alırız ve 1'i o kura bölerek tersini buluruz.
         if (fromCurrency == "TRY" || fromCurrency == "TL")
         {
             decimal rate = await FetchRateFromVakifBankAsync(toCurrency, "TL", cancellationToken);
             return 1m / rate;
         }
 
-        // SENARYO 3: Çapraz Kur (Örn: EUR -> USD veya XAU -> USD)
-        // Çözüm: İki dövizin de TL karşılığını alırız ve birbirine böleriz.
         decimal rateFrom = await FetchRateFromVakifBankAsync(fromCurrency, "TL", cancellationToken);
         decimal rateTo = await FetchRateFromVakifBankAsync(toCurrency, "TL", cancellationToken);
 
@@ -42,14 +37,10 @@ public sealed class ExchangeService(HttpClient httpClient, IConfiguration config
     // --- VAKIFBANK'A İSTEK ATAN GİZLİ İŞÇİ METOT ---
     private async Task<decimal> FetchRateFromVakifBankAsync(string fromCurrency, string toCurrency, CancellationToken cancellationToken)
     {
-        // SADECE TRY -> TL çevirisi yapıyoruz. XAU, USD vs. KENDİ HALİYLE (XAU) GİDİYOR!
         string apiFrom = fromCurrency == "TRY" ? "TL" : fromCurrency;
         string apiTo = toCurrency == "TRY" ? "TL" : toCurrency;
-
-        // 1. ADIM: Token Al
         string token = await GetAccessTokenAsync(cancellationToken);
 
-        // 2. ADIM: İsteği Hazırla
         var requestModel = new VakifBankCalculationRequest
         {
             SourceCurrencyCode = apiFrom,
@@ -57,16 +48,15 @@ public sealed class ExchangeService(HttpClient httpClient, IConfiguration config
             TargetCurrencyCode = apiTo
         };
 
-        // 3. ADIM: Serileştirme
+ 
         string jsonPayload = JsonSerializer.Serialize(requestModel);
 
-        // 4. ADIM: HTTP İsteği
+        // istek oluşturma
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, configuration["VakifBankApi:ApiUrl"]);
 
         requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         requestMessage.Content = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
 
-        // 5. ADIM: Gönder
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
@@ -103,8 +93,6 @@ public sealed class ExchangeService(HttpClient httpClient, IConfiguration config
         var clientSecret = configuration["VakifBankApi:ClientSecret"];
         var scope = configuration["VakifBankApi:Scope"];
         var tokenUrl = configuration["VakifBankApi:TokenUrl"];
-
-        // Basic Auth Header Oluşturma
         var authString = $"{clientId}:{clientSecret}";
         var base64Auth = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(authString));
 

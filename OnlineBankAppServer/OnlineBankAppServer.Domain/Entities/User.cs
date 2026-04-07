@@ -17,5 +17,8 @@ namespace OnlineBankAppServer.Domain.Entities
         public string District { get; set; } = string.Empty; // İlçe (Örn: ŞİŞLİ)
         public string Neighborhood { get; set; } = string.Empty; // Mahalle (Örn: FULYA MAH.)
         public string Adress { get; set; } = string.Empty; // Sadece Sokak, Bina, Kapı No detayı için
+        public Guid SecurityStamp { get; set;} = Guid.NewGuid(); // Giriş çıkış ve şifre değişiminde damga güncellenecek
+        public string? RefreshToken {  get; set; } = string.Empty;
+        public DateTime? RefreshTokenExpires { get; set; }
     }
 }

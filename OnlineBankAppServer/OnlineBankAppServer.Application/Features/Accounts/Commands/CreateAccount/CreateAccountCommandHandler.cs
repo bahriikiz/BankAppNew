@@ -20,10 +20,10 @@ internal sealed class CreateAccountCommandHandler(
         int userId = int.Parse(userIdClaim.Value);
 
         // Random iban üretme
-        Random random = new Random();
+        Random random = new();
         string ibanNumbers = string.Empty;
 
-        StringBuilder ibanBuilder = new StringBuilder();
+        StringBuilder ibanBuilder = new();
 
 
         for (int i = 0; i < 24; i++)
@@ -52,7 +52,7 @@ internal sealed class CreateAccountCommandHandler(
             IsActive = true,
             LastTransactionDate = DateTime.Now,
 
-            Transactions = new List<BankTransaction>()
+            Transactions = []
         };
 
         context.Accounts.Add(account);

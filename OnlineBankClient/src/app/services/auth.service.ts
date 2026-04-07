@@ -30,20 +30,18 @@ export class AuthService {
   // Tarayıcıdaki Cookie'ler Backend tarafında silinecek, biz sadece kendi sinyalimizi temizliyoruz.
   logout() {
     this.currentUser.set(null);
-    return this.http.get(`${this.apiUrl}/logout`); // API'deki çerezi silen endpoint'i çağırıyoruz
+    return this.http.get(`${this.apiUrl}/logout`, { withCredentials: true });
   }
 
-  // YENİ: Token var mı yok mu diye API'ye bir "Ping" atıyoruz. 
   // (Çünkü artık token'ı biz JavaScript ile göremiyoruz, sadece sunucu görebilir)
   isAuthenticated(): boolean {
     return this.currentUser() !== null; 
   }
 
-  // --- DİKKAT: ARTIK HİÇBİR İSTEKTE HEADER'A BEARER TOKEN EKLENMİYOR! ---
   // Tarayıcı bunu HttpOnly Cookie ile otomatik ve güvenli şekilde (XSS Korumalı) gönderir.
 
   getProfile(): Observable<any> {
-    return this.http.get(`${this.apiUrl}/my-profile`);
+    return this.http.get(`${this.apiUrl}/my-profile`, { withCredentials: true });
   }
 
   updateProfile(data: { phoneNumber: string, city: string, district: string, neighborhood: string, address: string }): Observable<any> {

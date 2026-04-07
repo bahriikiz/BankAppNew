@@ -4,7 +4,6 @@ using OnlineBankAppServer.Application.Abstractions;
 using OnlineBankAppServer.Persistance;
 
 namespace OnlineBankAppServer.Application.Features.Auth.Commands.Login
-
 {
     internal sealed class LoginCommandHandler(
     AppDbContext context,
@@ -27,15 +26,22 @@ namespace OnlineBankAppServer.Application.Features.Auth.Commands.Login
                 return new LoginCommandResponse(string.Empty, string.Empty, string.Empty, "Şifre hatalı.");
             }
 
-            // Gerçek bir uygulamada, JWT oluştururken daha fazla bilgi ekleyebilir ve güvenlik önlemleri alabilirsiniz.
+        
+            user.RefreshToken = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+            user.RefreshTokenExpires = DateTime.UtcNow.AddMinutes(75); 
+
+        
+            await context.SaveChangesAsync(cancellationToken);
+          
+
             string token = jwtProvider.CreateToken(user);
 
             return new LoginCommandResponse(
-    Token: token,
-    FirstName: user.FirstName, 
-    LastName: user.LastName,  
-    Message: "Giriş başarılı."
-);
+                Token: token,
+                FirstName: user.FirstName,
+                LastName: user.LastName,
+                Message: "Giriş başarılı."
+            );
         }
     }
 }

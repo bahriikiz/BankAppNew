@@ -19,12 +19,7 @@ internal sealed class GetAccountByUserIdQueryHandler(
 
     public async Task<List<Account>> Handle(GetAccountByUserIdQuery request, CancellationToken cancellationToken)
     {
-        var userIdClaim = httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier);
-
-        // Genel Exception yerine profesyonel yetki hatası fırlatıyoruz
-        if (userIdClaim is null)
-            throw new UnauthorizedAccessException("Kullanıcı bulunamadı. Lütfen giriş yapınız.");
-
+        var userIdClaim = (httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)) ?? throw new UnauthorizedAccessException("Kullanıcı bulunamadı. Lütfen giriş yapınız.");
         int userId = int.Parse(userIdClaim.Value);
 
         // Hesapları veritabanından çek 
@@ -56,7 +51,7 @@ internal sealed class GetAccountByUserIdQueryHandler(
         try
         {
             string cleanIban = account.Iban.Replace(" ", "");
-            string accountNumber = cleanIban.Length >= 17 ? cleanIban.Substring(cleanIban.Length - 17) : cleanIban;
+            string accountNumber = cleanIban.Length >= 17 ? cleanIban[^17..] : cleanIban;
 
             // VakıfBank'tan canlı hesap detaylarını çekiyoruz
             var detailResponse = await vakifbankService.GetAccountDetailAsync(account.RizaNo!, accountNumber, cancellationToken);
@@ -70,13 +65,12 @@ internal sealed class GetAccountByUserIdQueryHandler(
                     account.Balance = liveBalance;
                 }
 
-                // Arayüzde VakıfBank'tan gelen "TL" yerine modern "TRY" görünmesi için düzeltme
                 account.CurrencyType = accountInfo.CurrencyCode == "TL" ? "TRY" : (accountInfo.CurrencyCode ?? account.CurrencyType);
             }
         }
         catch
         {
-            // API çökerse sistem patlamaz, kendi veritabanımızdaki bilgileri kullanır.
+            // Api çökerse veya ulaşılamazsa kendi veritabanımızdan döner.
         }
     }
 }

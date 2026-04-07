@@ -69,7 +69,6 @@ public sealed class VakifbankService : IVakifbankService
     #endregion
 
     #region Genel API İstek Motoru
-
     private async Task<T?> SendVakifbankRequestAsync<T>(
         string? url,
         string accessToken,

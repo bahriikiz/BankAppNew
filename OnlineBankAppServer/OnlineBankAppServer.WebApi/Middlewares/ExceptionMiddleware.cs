@@ -7,10 +7,7 @@ public sealed class ExceptionMiddleware
 {
     private readonly RequestDelegate _next;
 
-    public ExceptionMiddleware(RequestDelegate next)
-    {
-        _next = next;
-    }
+    public ExceptionMiddleware(RequestDelegate next) => _next = next;
 
     public async Task Invoke(HttpContext context)
     {
@@ -43,8 +40,8 @@ public sealed class ExceptionMiddleware
 
         var response = new
         {
-            StatusCode = context.Response.StatusCode,
-            Message = exception.Message,
+            context.Response.StatusCode,
+            exception.Message,
             Title = "Bir Hata Oluştu"
         };
 

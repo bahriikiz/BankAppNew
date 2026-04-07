@@ -24,7 +24,20 @@ export class AppComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+
     if (isPlatformBrowser(this.platformId)) {
+      
+      // ---  Sayfa yenilendiğinde oturumu kurtarma ---
+      this.authService.getProfile().subscribe({
+        next: (user: any) => {
+          this.authService.setSession({ name: user.firstName, surname: user.lastName });
+        },
+        error: () => {
+          // Token bitmiş, cookie silinmiş veya giriş yapılmamış
+          this.authService.currentUser.set(null);
+        }
+      });
+
       this.loadRates(); 
       setInterval(() => this.loadRates(), 30000); 
     }

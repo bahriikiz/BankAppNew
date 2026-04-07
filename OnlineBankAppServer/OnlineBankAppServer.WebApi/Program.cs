@@ -125,6 +125,36 @@ builder.Services.AddAuthentication(options =>
             }
             return Task.CompletedTask;
         },
+
+        OnTokenValidated = async context =>
+        {
+            var dbContext = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+
+            var userId = context.Principal?.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
+                         ?? context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            var tokenStamp = context.Principal?.FindFirst("SecurityStamp")?.Value;
+
+            if (!string.IsNullOrEmpty(userId) && int.TryParse(userId, out int parsedUserId))
+            {
+          
+                var userStampFromDb = await dbContext.Users
+                    .AsNoTracking()
+                    .Where(u => u.Id == parsedUserId)
+                    .Select(u => u.SecurityStamp)
+                    .FirstOrDefaultAsync();
+
+                if (userStampFromDb == Guid.Empty || !userStampFromDb.ToString().Equals(tokenStamp, StringComparison.OrdinalIgnoreCase))
+                {
+                    context.Fail("Oturum iptal edilmiþ veya geçersiz!");
+                }
+            }
+            else
+            {
+                context.Fail("Kimliksiz token.");
+            }
+        },
+
         OnForbidden = context =>
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
@@ -149,7 +179,7 @@ WebApplication app = builder.Build();
 app.UseMiddleware<OnlineBankAppServer.WebApi.Middlewares.ExceptionMiddleware>();
 
 app.UseCors();
-app.UseRateLimiter(); 
+app.UseRateLimiter();
 
 if (app.Environment.IsDevelopment())
 {

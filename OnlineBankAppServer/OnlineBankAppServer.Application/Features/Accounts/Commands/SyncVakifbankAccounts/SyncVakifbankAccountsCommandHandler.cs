@@ -21,10 +21,10 @@ public sealed class SyncVakifbankAccountsCommandHandler : IRequestHandler<SyncVa
 
     public async Task<SyncVakifbankAccountsCommandResponse> Handle(SyncVakifbankAccountsCommand request, CancellationToken cancellationToken)
     {
-        // ARTIK FRONTEND'DEN GELEN RIZA NO'YI VAKIFBANK'A GÖNDER!
+        // Vakifbank API'sinden hesap bilgilerini al
         var vakifbankResponse = await _vakifbankService.GetAccountsAsync(request.RizaNo, cancellationToken);
 
-        if (vakifbankResponse?.Data?.Accounts == null || !vakifbankResponse.Data.Accounts.Any())
+        if (vakifbankResponse?.Data?.Accounts == null || vakifbankResponse.Data.Accounts.Count == 0)
         {
             return new SyncVakifbankAccountsCommandResponse(false, "Vakıfbank'tan hesap bilgisi alınamadı veya Rıza No geçersiz.");
         }
@@ -71,7 +71,7 @@ public sealed class SyncVakifbankAccountsCommandHandler : IRequestHandler<SyncVa
                     LastTransactionDate = vAccount.LastTransactionDate,
                     BankId = 1,
                     RizaNo = request.RizaNo,
-                    Transactions = new List<BankTransaction>()
+                    Transactions = []
                 };
 
                 await _context.Accounts.AddAsync(newAccount, cancellationToken);
