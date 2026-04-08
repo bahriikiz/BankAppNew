@@ -30,7 +30,9 @@ namespace OnlineBankAppServer.Application.Features.Auth.Commands.Login
             user.RefreshToken = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
             user.RefreshTokenExpires = DateTime.UtcNow.AddMinutes(75); 
 
-        
+            user.SecurityStamp = Guid.NewGuid();// Güvenlik damgasını güncelle
+
+
             await context.SaveChangesAsync(cancellationToken);
           
 

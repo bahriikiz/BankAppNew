@@ -44,20 +44,36 @@ public sealed class AuthController(IMediator mediator) : ApiController(mediator)
     [HttpGet("logout")]
     public async Task<IActionResult> Logout([FromServices] OnlineBankAppServer.Persistance.AppDbContext context)
     {
-        var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)
-                          ?? User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+        // token içinden User ID'yi almaya çalışıyoruz (birden fazla claim türünü kontrol ediyoruz)
+        var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)
+                          ?? User.Claims.FirstOrDefault(c => c.Type == System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)
+                          ?? User.Claims.FirstOrDefault(c => c.Type == "sub")
+                          ?? User.Claims.FirstOrDefault(c => c.Type == "UserId");
 
-        if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
+        // eğer token'dan ID'yi alamadıysak çıkış işlemini yarım bırakıyoruz (DB güncellenmiyor)
+        if (userIdClaim == null || string.IsNullOrEmpty(userIdClaim.Value))
+        {
+            return BadRequest(new { Message = "Token içinden kullanıcı kimliği (ID) okunamadı! Çıkış işlemi yarım kaldı, DB güncellenmedi." });
+        }
+
+        //  ID'yi başarıyla bulduysa veritabanında damgayı değiştiriyoruz
+        if (int.TryParse(userIdClaim.Value, out int userId))
         {
             var user = await context.Users.FindAsync(userId);
             if (user != null)
             {
+                // Güvenlik damgasını değiştirerek tüm aktif token'ların geçersiz olmasını sağlıyoruz
                 user.SecurityStamp = Guid.NewGuid();
                 user.RefreshToken = null;
                 await context.SaveChangesAsync();
             }
+            else
+            {
+                return BadRequest(new { Message = "Kullanıcı veritabanında bulunamadı!" });
+            }
         }
 
+        // Çerezleri temizliyoruz
         Response.Cookies.Delete("AccessToken", new CookieOptions
         {
             HttpOnly = true,
@@ -65,7 +81,7 @@ public sealed class AuthController(IMediator mediator) : ApiController(mediator)
             SameSite = SameSiteMode.None
         });
 
-        return Ok(new { Message = "Güvenli çıkış yapıldı." });
+        return Ok(new { Message = "Güvenli çıkış yapıldı ve damga başarıyla güncellendi." });
     }
 
     [Authorize]
