@@ -7,15 +7,17 @@ using OnlineBankAppServer.Application.Features.Accounts.Commands.SyncVakifbankAc
 using OnlineBankAppServer.Application.Features.Accounts.Queries.GetById;
 using OnlineBankAppServer.Application.Features.Accounts.Queries.GetByUserId;
 using OnlineBankAppServer.Application.Features.Accounts.Queries.GetStatementPdf;
+using OnlineBankAppServer.Domain.Entities;
+using OnlineBankAppServer.Persistance;
 using OnlineBankAppServer.Presentation.Abstraction;
 
 namespace OnlineBankAppServer.Presentation.Controller;
 
 [Authorize]
-public sealed class AccountsController(IMediator mediator) : ApiController(mediator)
+public sealed class AccountsController(IMediator mediator, AppDbContext context) : ApiController(mediator)
 {
     [HttpPost("create-account")]
-    public async Task<IActionResult> Create(CreateAccountCommand request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create([FromBody] CreateAccountCommand request, CancellationToken cancellationToken)
     {
         var response = await _mediator.Send(request, cancellationToken);
         return Ok(new { Message = response });
@@ -28,10 +30,9 @@ public sealed class AccountsController(IMediator mediator) : ApiController(media
         return Ok(response);
     }
 
-    [HttpGet("{id}")]
+    [HttpGet("get-by-id/{id}")]
     public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
     {
-
         var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "UserId")
                             ?? User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)
                             ?? User.Claims.FirstOrDefault(c => c.Type == "sub");
@@ -101,5 +102,29 @@ public sealed class AccountsController(IMediator mediator) : ApiController(media
         }
 
         return Ok(response);
+    }
+
+    [HttpPost("cheat-deposit/{accountId}")]
+    public async Task<IActionResult> CheatDeposit(int accountId, [FromQuery] decimal amount)
+    {
+        var account = await context.Accounts.FindAsync(accountId);
+        if (account == null) return NotFound(new { Message = "Hesap bulunamadı kral." });
+
+        account.Balance += amount;
+        account.AvailableBalance += amount;
+
+        var transaction = new BankTransaction
+        {
+            AccountId = accountId,
+            Amount = amount,
+            Description = "Swagger üzerinden sistem parası basıldı.",
+            TransactionDate = DateTime.UtcNow,
+            TargetIban = account.Iban
+        };
+
+        context.BankTransactions.Add(transaction);
+        await context.SaveChangesAsync();
+
+        return Ok(new { Message = $"{amount} TL hesaba başarıyla basıldı. Yeni Bakiye: {account.Balance}" });
     }
 }

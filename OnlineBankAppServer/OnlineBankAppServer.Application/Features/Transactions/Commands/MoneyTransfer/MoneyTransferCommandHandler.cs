@@ -84,7 +84,9 @@ internal sealed class MoneyTransferCommandHandler(
         };
 
         var todaysTotalTransfer = await context.BankTransactions
-            .Where(x => x.AccountId == sourceAccount.Id && x.TransactionDate >= DateTime.Today)
+            .Where(x => x.AccountId == sourceAccount.Id
+                     && x.TransactionDate >= DateTime.Today
+                     && x.TargetIban != sourceAccount.Iban) 
             .SumAsync(x => x.Amount, cancellationToken);
 
         if (todaysTotalTransfer + transferAmount > dailyLimit)

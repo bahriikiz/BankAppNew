@@ -13,26 +13,22 @@ internal sealed class CreateAccountCommandHandler(
 {
     public async Task<string> Handle(CreateAccountCommand request, CancellationToken cancellationToken)
     {
-        // JWT Token'dan kullanıcı kimliğini alıyoruz
         var userIdClaim = (httpContextAccessor.HttpContext?.User.FindFirst("UserId")
                           ?? httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)
                           ?? httpContextAccessor.HttpContext?.User.FindFirst("sub")) ?? throw new UnauthorizedAccessException("Kullanıcı bulunamadı.");
         int userId = int.Parse(userIdClaim.Value);
 
-        // Random iban üretme
         Random random = new();
-        string ibanNumbers = string.Empty;
-
         StringBuilder ibanBuilder = new();
-
 
         for (int i = 0; i < 24; i++)
         {
             ibanBuilder.Append(random.Next(0, 10));
         }
 
-        string newIban = "TR" + ibanBuilder.ToString();
-        string newAccountNumber = ibanNumbers.Substring(8, 16);
+        string generatedNumbers = ibanBuilder.ToString();
+        string newIban = "TR" + generatedNumbers;
+        string newAccountNumber = generatedNumbers.Substring(8, 16);
 
         var account = new Account
         {
@@ -41,17 +37,14 @@ internal sealed class CreateAccountCommandHandler(
             Balance = 0,
             UserId = userId,
             CreatedDate = DateTime.Now,
-
-            // --- AÇIK BANKACILIK & İKİZ BANK KONTROLLERİ ---
             BankId = 1,
             ProviderBank = "İKİZ BANK",
-            AccountName = "İKİZ BANK Vadesiz Hesap",
+            AccountName = string.IsNullOrWhiteSpace(request.AccountName) ? "İKİZ BANK Vadesiz Hesap" : request.AccountName,
             AccountNumber = newAccountNumber,
             AvailableBalance = 0,
             AccountType = "Vadesiz",
             IsActive = true,
             LastTransactionDate = DateTime.Now,
-
             Transactions = []
         };
 

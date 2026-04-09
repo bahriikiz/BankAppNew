@@ -15,7 +15,7 @@ import { AiService } from '../../services/ai.service';
 export class AccountDetailsComponent implements OnInit {
   public accountDetails = signal<any>(null);
   public transactions = signal<any[]>([]);
-  
+  // Genel yüklenme ve hata durumları için sinyaller
   public isLoading = signal(true);
   public isTransactionsLoading = signal(false);
   public isReceiptLoading = signal<string | null>(null);
