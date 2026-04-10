@@ -141,9 +141,20 @@ internal sealed class MoneyTransferCommandHandler(
             context.BankTransactions.Add(new BankTransaction
             {
                 AccountId = source.Id,
-                Amount = amountToDebit,
+                Amount = -amountToDebit, 
                 Description = finalDescription,
                 TargetIban = targetIban,
+                TransactionDate = DateTime.Now,
+                CreatedDate = DateTime.Now
+            });
+
+            
+            context.BankTransactions.Add(new BankTransaction
+            {
+                AccountId = target.Id,
+                Amount = amountToCredit, 
+                Description = $"Gelen Transfer ({source.Iban}) - {description}",
+                TargetIban = source.Iban, 
                 TransactionDate = DateTime.Now,
                 CreatedDate = DateTime.Now
             });

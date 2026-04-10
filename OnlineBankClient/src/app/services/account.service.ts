@@ -32,7 +32,7 @@ export class AccountService {
 
   getAccountDetails(accountId: number | string): Observable<any> {
     if (!this.authService.isAuthenticated()) return of(null);
-    return this.http.get(`${this.apiUrl}/${accountId}`);
+    return this.http.get(`${this.apiUrl}/get-by-id/${accountId}`);
   }
 
   getAccountActivities(payload: { accountId: number, startDate?: string, endDate?: string }): Observable<any[]> {

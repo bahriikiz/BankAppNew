@@ -16,13 +16,11 @@ namespace OnlineBankAppServer.Application.Features.Accounts.Queries.GetById
 
         public async Task<AccountDetailDto> Handle(GetAccountByIdQuery request, CancellationToken cancellationToken)
         {
-            // 1. Hesabı Bul (Spesifik Exception ile)
             var account = await context.Accounts
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.AccountId && x.UserId == request.UserId, cancellationToken)
                 ?? throw new KeyNotFoundException("Hesap bulunamadı veya bu işlem için yetkiniz yok!");
 
-            // 2. Karar Mekanizması: Vakıfbank mı yoksa Lokal mi?
             if (!string.IsNullOrEmpty(account.RizaNo))
             {
                 return await GetVakifbankAccountDetailAsync(account, cancellationToken);
@@ -42,11 +40,9 @@ namespace OnlineBankAppServer.Application.Features.Accounts.Queries.GetById
 
             try
             {
-                // A) Canlı Bakiye
                 var detail = await vakifbankService.GetAccountDetailAsync(rizaNo, accountNumber, cancellationToken);
                 if (detail?.Data?.AccountInfo != null)
                 {
-                    // Bakiye sıfırlanmasını önlüyoruz
                     if (decimal.TryParse(detail.Data.AccountInfo.Balance?.Replace(".", ","), NumberStyles.Any, TrCulture, out decimal parsedBalance))
                     {
                         liveBalance = parsedBalance;
@@ -54,7 +50,6 @@ namespace OnlineBankAppServer.Application.Features.Accounts.Queries.GetById
                     liveCurrency = detail.Data.AccountInfo.CurrencyCode == "TL" ? "TRY" : detail.Data.AccountInfo.CurrencyCode ?? "TRY";
                 }
 
-                // B) Canlı Hareketler
                 var txResponse = await vakifbankService.GetAccountTransactionsAsync(rizaNo, accountNumber, DateTime.Now.AddMonths(-1), DateTime.Now, cancellationToken);
                 if (txResponse?.Data?.AccountTransactions != null)
                 {
@@ -76,7 +71,7 @@ namespace OnlineBankAppServer.Application.Features.Accounts.Queries.GetById
                 DateTime.TryParse(t.TransactionDate, out DateTime transactionDate);
 
                 list.Add(new AccountTransactionDto(
-                    amount,
+                    Math.Abs(amount), // Tutar her zaman pozitif (Angular halledecek)
                     t.Description ?? "VakıfBank İşlemi",
                     transactionDate,
                     transactionDate.ToString("dd.MM.yyyy HH:mm"),
@@ -90,20 +85,24 @@ namespace OnlineBankAppServer.Application.Features.Accounts.Queries.GetById
 
         private async Task<AccountDetailDto> GetLocalAccountDetailAsync(Account account, CancellationToken cancellationToken)
         {
-            // Giden Paralar
+            // IBAN boşluklarını temizliyoruz (karşılaştırma için çok önemli)
+            string cleanIban = account.Iban.Replace(" ", "");
+
+            // Giden Paralar: Benim hesabımdan çıkmış AMA hedef IBAN benimki DEĞİL
             var outgoing = await context.BankTransactions
                 .AsNoTracking()
-                .Where(x => x.AccountId == account.Id)
+                .Where(x => x.AccountId == account.Id && x.TargetIban != null && x.TargetIban.Replace(" ", "") != cleanIban)
                 .Select(x => new AccountTransactionDto(
-                    x.Amount, x.Description ?? "Transfer", x.TransactionDate,
+                    Math.Abs(x.Amount), 
+                    x.Description ?? "Transfer", x.TransactionDate,
                     x.TransactionDate.AddHours(3).ToString("dd.MM.yyyy HH:mm"),
                     "Giden Para", x.TargetIban ?? "Bilinmiyor", null))
                 .ToListAsync(cancellationToken);
 
-            // Gelen Paralar ve Gönderen Bilgisi
+            // Gelen Paralar: Hedef IBAN direkt benim IBAN'ım (Boşluksuz eşleşme yapıyoruz)
             var incomingRaw = await context.BankTransactions
                 .AsNoTracking()
-                .Where(x => x.TargetIban == account.Iban)
+                .Where(x => x.TargetIban != null && x.TargetIban.Replace(" ", "") == cleanIban)
                 .ToListAsync(cancellationToken);
 
             var senderIds = incomingRaw.Select(x => x.AccountId).Distinct().ToList();
@@ -114,10 +113,11 @@ namespace OnlineBankAppServer.Application.Features.Accounts.Queries.GetById
                 .ToDictionaryAsync(k => k.Id, v => $"{v.User!.FirstName} {v.User.LastName}", cancellationToken);
 
             var incoming = incomingRaw.Select(x => new AccountTransactionDto(
-                x.Amount, x.Description ?? "Transfer", x.TransactionDate,
+                Math.Abs(x.Amount),
+                x.Description ?? "Transfer", x.TransactionDate,
                 x.TransactionDate.AddHours(3).ToString("dd.MM.yyyy HH:mm"),
                 "Gelen Para",
-                senderInfo.TryGetValue(x.AccountId, out var name) ? name : $"Gönderen ID: {x.AccountId}",
+                x.AccountId == account.Id ? "Sistem / Kendi İşlemim" : (senderInfo.TryGetValue(x.AccountId, out string? name) ? name : $"Gönderen ID: {x.AccountId}"),
                 null)).ToList();
 
             var allTransactions = outgoing.Concat(incoming).OrderByDescending(x => x.Date).ToList();
